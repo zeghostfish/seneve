@@ -42,4 +42,3 @@ Moved to later milestones:
 - Epic 001 must only establish foundation and no business functionality.
 - Later Epics must avoid pulling deferred features into V1 unless a new ADR changes scope.
 - The architecture must still keep deferred interfaces and modules possible.
-

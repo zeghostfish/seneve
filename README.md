@@ -32,4 +32,3 @@ It must not implement business modules such as campaigns, candidates, voting, pa
 - Keep documentation synchronized with implementation.
 - Never hardcode secrets.
 - Confirmed votes, ledger entries, payment webhook records, and audit logs are immutable.
-

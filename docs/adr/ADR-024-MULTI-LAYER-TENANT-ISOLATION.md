@@ -24,4 +24,3 @@ Both layers are mandatory. Neither layer is sufficient alone.
 - Database access must set tenant context for RLS-protected queries.
 - Tests must verify cross-tenant access denial at both application and database levels.
 - Migrations must account for RLS policies as part of schema design.
-

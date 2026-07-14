@@ -78,4 +78,3 @@ A task is complete only when:
 Documentation is part of implementation.
 
 If behavior changes, the relevant documentation must change in the same Epic.
-

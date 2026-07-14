@@ -32,4 +32,3 @@ The Voting Engine must never calculate financial information directly.
 - Ledger entries are immutable.
 - Refunds and corrections create compensating entries.
 - Voting consumes financial outcomes through application services or domain events.
-

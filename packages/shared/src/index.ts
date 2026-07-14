@@ -5,4 +5,3 @@ export interface HealthResponse {
   service: string;
   timestamp: string;
 }
-

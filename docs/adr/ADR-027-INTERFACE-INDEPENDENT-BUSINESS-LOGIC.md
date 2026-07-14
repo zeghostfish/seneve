@@ -21,4 +21,3 @@ All interfaces consume the same application services and domain modules.
 - Application services expose use cases.
 - Domain modules expose business concepts, rules, events, and invariants.
 - API contracts can evolve without duplicating business behavior.
-

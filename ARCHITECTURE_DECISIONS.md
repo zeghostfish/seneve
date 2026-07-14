@@ -24,4 +24,3 @@ Additional accepted decisions:
 Architecture decisions are never removed.
 
 If a decision changes, create a new ADR that supersedes the previous one and preserves the decision history.
-

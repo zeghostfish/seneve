@@ -24,4 +24,3 @@ Additional product and module specifications from the source requirements remain
 - Any significant architecture change requires a new ADR.
 - Confirmed votes, ledger entries, payment webhook records, and audit logs are immutable.
 - GitHub is the source of truth once the repository is initialized.
-

@@ -330,4 +330,3 @@ Epic 001 must establish the project foundation only.
 It must not implement business functionality.
 
 Allowed deliverables include repository initialization, monorepo structure, Docker, CI/CD, NestJS, Next.js, worker service, Prisma, PostgreSQL, Redis, logging, configuration, health checks, documentation structure, linting, formatting, testing framework, and GitHub workflows.
-

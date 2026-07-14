@@ -24,7 +24,7 @@ export function loadFoundationConfig(env: NodeJS.ProcessEnv = process.env): Foun
     webPort: parsePort(env.WEB_PORT, 3001),
     workerHealthPort: parsePort(env.WORKER_HEALTH_PORT, 3002),
     databaseUrl: env.DATABASE_URL!,
-    redisUrl: env.REDIS_URL!
+    redisUrl: env.REDIS_URL!,
   };
 }
 
@@ -41,4 +41,3 @@ function parsePort(value: string | undefined, fallback: number): number {
 
   return parsed;
 }
-

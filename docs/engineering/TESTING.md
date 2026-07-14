@@ -58,4 +58,3 @@ Epic 001 requires foundation smoke tests only:
 - CI quality gate
 
 No business workflow tests are expected until business modules exist.
-

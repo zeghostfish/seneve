@@ -97,4 +97,3 @@ Infrastructure adapters include:
 - webhook controllers
 
 Adapters depend on application ports. Domain modules must not depend on adapters.
-

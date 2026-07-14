@@ -8,15 +8,15 @@
     "node": ">=22.0.0"
   },
   "scripts": {
-    "build": "pnpm -r --if-present build",
-    "clean": "pnpm -r --if-present clean",
-    "dev": "pnpm --parallel --filter @seneve/api --filter @seneve/web --filter @seneve/worker dev",
+    "build": "corepack pnpm -r --if-present build",
+    "clean": "corepack pnpm -r --if-present clean",
+    "dev": "corepack pnpm --parallel --filter @seneve/api --filter @seneve/web --filter @seneve/worker dev",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "pnpm -r --if-present typecheck"
+    "typecheck": "corepack pnpm -r --if-present typecheck"
   },
   "devDependencies": {
     "@eslint/js": "^9.32.0",
@@ -28,4 +28,3 @@
     "vitest": "^3.2.4"
   }
 }
-

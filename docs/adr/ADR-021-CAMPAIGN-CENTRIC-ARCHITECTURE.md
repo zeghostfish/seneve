@@ -36,4 +36,3 @@ Events remain useful grouping entities, but campaign behavior must not be subord
 - Application services must prevent bypassing campaign configuration.
 - Reports, analytics, payment setup, fraud protection, and workflows must be campaign-aware.
 - Future modules should depend on campaign contracts or domain events rather than event-specific shortcuts.
-

@@ -33,4 +33,3 @@ Example:
 - Conditions must be evaluated consistently in application services.
 - UI authorization is advisory only; server-side enforcement is mandatory.
 - Future authorization expansion must not require redesigning the access model.
-

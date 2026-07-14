@@ -35,4 +35,3 @@ Each completed Epic must record:
 - documentation updates
 - known limitations
 - recommended next milestone
-

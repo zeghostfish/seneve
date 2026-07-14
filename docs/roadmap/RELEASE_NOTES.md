@@ -14,4 +14,3 @@
 - Repository has not yet been initialized as a Git repository.
 - No application code has been generated.
 - No business functionality has been implemented.
-

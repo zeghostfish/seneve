@@ -40,4 +40,3 @@ Templates may configure:
 - Template configuration must remain data-driven.
 - A campaign may override allowed template defaults according to documented rules.
 - Template changes must not silently mutate already published campaigns unless an explicit migration or versioning policy allows it.
-

@@ -280,4 +280,3 @@ Every future architecture decision must include:
 - related documents
 
 Architecture decisions are never removed. If a decision changes, a new ADR references the previous one.
-

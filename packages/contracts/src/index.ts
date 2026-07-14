@@ -11,4 +11,3 @@ export interface ApiError {
   details?: Record<string, unknown>;
   traceId?: string;
 }
-

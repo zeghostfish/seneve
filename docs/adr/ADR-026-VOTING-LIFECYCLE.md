@@ -33,4 +33,3 @@ Each stage represents an auditable business event.
 - Verification, payment, fraud analysis, ledger update, settlement, and audit must not be bypassed.
 - Paid votes must not be confirmed before definitive payment success.
 - Every stage must be idempotent where replay or retry is possible.
-
