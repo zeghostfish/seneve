@@ -14,6 +14,10 @@
 - Refined Epic 002 planning with explicit authentication, authorization, tenant-isolation, audit, data-lifecycle, API, and security-test decisions.
 - Added Epic 002 design-review report.
 - Added Epic 001 Pull Request description draft.
+- Formalized Identity as the aggregate root for authentication.
+- Formalized Organization aggregate boundaries for future subscription, billing, and API key support.
+- Added Permission Evaluation Service as the centralized authorization decision point.
+- Added Identity Aggregate implementation plan.
 
 ### Foundation
 

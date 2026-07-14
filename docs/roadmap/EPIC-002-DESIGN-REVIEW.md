@@ -17,9 +17,12 @@
 
 - Epic 002 remains planning-only until explicit approval.
 - V1 authentication uses email/password, email verification, JWT access tokens, and rotating opaque refresh tokens.
+- The Identity aggregate root is `Identity`, not `User`.
+- Authentication is not coupled directly to the `User` entity.
 - User accounts are global and do not belong directly to one organization.
 - Organization access is modeled through memberships.
 - Authorization follows `Role -> Permission -> Policy -> Condition`.
+- Permission checks are centralized through a dedicated Permission Evaluation Service.
 - Tenant isolation requires both application-level scoping and PostgreSQL Row-Level Security.
 - Platform administration is exceptional, explicit, reasoned, and audited.
 - Audit logs are immutable and must redact secrets.
@@ -83,15 +86,20 @@ The planning document now proposes:
 
 Identity:
 
+- `Identity`
 - `User`
 - `AuthenticationIdentity`
+- `Credential`
 - `PasswordCredential`
-- `VerifiedEmail`
-- `VerifiedPhoneNumber`
+- `EmailAddress`
+- `PhoneNumber`
 - `EmailVerification`
 - `PasswordResetRequest`
 - `RefreshTokenSession`
 - `RefreshTokenFamily`
+- `Session`
+- `RefreshToken`
+- `LoginHistory`
 - `UserSecurityEvent`
 
 Organization:
@@ -99,9 +107,12 @@ Organization:
 - `Organization`
 - `OrganizationSettings`
 - `OrganizationBranding`
+- `Subscription`
+- `BillingProfile`
 - `Membership`
 - `Invitation`
 - `RoleAssignment`
+- `APIKey`
 
 Authorization:
 
@@ -110,6 +121,7 @@ Authorization:
 - `Policy`
 - `Condition`
 - `AuthorizationDecision`
+- `PermissionEvaluationService`
 
 ## 7. Final State Machines
 

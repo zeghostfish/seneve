@@ -177,19 +177,43 @@ A user may belong to multiple organizations through memberships.
 
 ### Identity Aggregate
 
-Aggregate root: `User`
+Aggregate root: `Identity`
+
+The Identity aggregate owns authentication identity and session lifecycle. `User` is a child entity representing the person/account profile, not the aggregate root.
+
+Recommended aggregate structure:
+
+```text
+Identity
+  -> User
+  -> Credential
+  -> EmailAddress
+  -> PhoneNumber
+  -> Session
+  -> RefreshToken
+  -> PasswordReset
+  -> EmailVerification
+  -> LoginHistory
+```
+
+This design keeps authentication independent from the `User` entity and prepares the platform for multiple authentication providers, passwordless authentication, magic links, passkeys/WebAuthn, OAuth, SAML, and enterprise SSO.
 
 Entities and value objects:
 
+- `Identity`
 - `User`
 - `AuthenticationIdentity`
+- `Credential`
 - `PasswordCredential`
-- `VerifiedEmail`
-- `VerifiedPhoneNumber`
+- `EmailAddress`
+- `PhoneNumber`
 - `EmailVerification`
 - `PasswordResetRequest`
 - `RefreshTokenSession`
 - `RefreshTokenFamily`
+- `Session`
+- `RefreshToken`
+- `LoginHistory`
 - `UserSecurityEvent`
 
 Responsibilities:
@@ -211,14 +235,32 @@ Non-responsibilities:
 
 Aggregate root: `Organization`
 
+Recommended aggregate structure:
+
+```text
+Organization
+  -> Membership
+  -> Invitation
+  -> OrganizationSettings
+  -> Branding
+  -> Subscription
+  -> BillingProfile
+  -> APIKey
+```
+
+`Subscription`, `BillingProfile`, and `APIKey` are included in the aggregate boundary for future extensibility, but billing and public API key implementation remains outside Epic 002 unless separately approved.
+
 Entities and value objects:
 
 - `Organization`
 - `OrganizationSettings`
 - `OrganizationBranding`
+- `Subscription`
+- `BillingProfile`
 - `Membership`
 - `Invitation`
 - `RoleAssignment`
+- `APIKey`
 
 Responsibilities:
 
@@ -259,6 +301,47 @@ Responsibilities:
 - policy evaluation
 - condition evaluation
 - deny/allow decision explanation
+
+### Permission Evaluation Service
+
+Authorization checks must be centralized in a dedicated Permission Evaluation Service.
+
+Application controllers and transport adapters must not evaluate permissions directly.
+
+The service answers questions such as:
+
+- can this user create a campaign?
+- can this user transfer ownership?
+- can this user view billing?
+- can this user manage API keys?
+
+Evaluation flow:
+
+```text
+Role
+  -> Permission
+    -> Policy
+      -> Condition
+        -> Decision
+```
+
+Inputs:
+
+- actor identity id
+- user id
+- organization id where applicable
+- requested permission
+- target resource
+- request context
+- correlation id
+
+Output:
+
+- allow or deny
+- reason code
+- evaluated policies
+- failed conditions
+- audit requirement
 
 ## State Machines
 
@@ -723,6 +806,18 @@ Representative V1 contracts:
 
 Identity events:
 
+- `IdentityRegistered`
+- `EmailVerified`
+- `PhoneVerified`
+- `PasswordChanged`
+- `PasswordResetRequested`
+- `PasswordResetCompleted`
+- `LoginSucceeded`
+- `LoginFailed`
+- `SessionCreated`
+- `SessionRevoked`
+- `RefreshTokenRotated`
+- `RefreshTokenReuseDetected`
 - `UserRegistered`
 - `UserEmailVerificationRequested`
 - `UserEmailVerified`
@@ -741,6 +836,7 @@ Identity events:
 Organization events:
 
 - `OrganizationCreated`
+- `OrganizationActivated`
 - `OrganizationUpdated`
 - `OrganizationSuspended`
 - `OrganizationClosed`
@@ -749,12 +845,15 @@ Organization events:
 - `MembershipInvited`
 - `MembershipActivated`
 - `MembershipCreated`
+- `MembershipUpdated`
 - `MembershipRoleChanged`
 - `MembershipSuspended`
 - `MembershipRemoved`
+- `InvitationCreated`
 - `InvitationAccepted`
 - `InvitationRevoked`
 - `InvitationExpired`
+- `OwnershipTransferred`
 
 Authorization events:
 
@@ -897,21 +996,23 @@ After approval:
 
 1. Update `DATABASE_SCHEMA.md` with approved Epic 002 tables.
 2. Add ADR if any security/session decision changes from this plan.
-3. Define domain types and state machines.
-4. Create Prisma migration with RLS policies.
-5. Implement password and token hashing utilities.
-6. Implement identity application services.
-7. Implement auth API endpoints.
-8. Implement organization and membership services.
-9. Implement invitation lifecycle.
-10. Implement authorization policy evaluator.
-11. Implement tenant context propagation.
-12. Add audit events.
-13. Add unit tests.
-14. Add integration tests.
-15. Add tenant-isolation tests.
-16. Update OpenAPI documentation.
-17. Update release notes and PR checklist.
+3. Implement Identity Aggregate domain model.
+4. Implement authentication application services.
+5. Implement session and refresh-token lifecycle.
+6. Implement email verification lifecycle.
+7. Implement password reset lifecycle.
+8. Implement Organization Aggregate domain model.
+9. Implement membership lifecycle.
+10. Implement invitation lifecycle.
+11. Implement Permission Evaluation Service.
+12. Implement tenant context propagation and RLS strategy.
+13. Integrate immutable audit event generation.
+14. Add API controllers and OpenAPI documentation.
+15. Add unit tests.
+16. Add integration tests.
+17. Add security tests.
+18. Add tenant-isolation tests.
+19. Update documentation, release notes, and PR checklist.
 
 ## Migration Strategy
 
