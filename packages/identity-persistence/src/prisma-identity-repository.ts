@@ -8,6 +8,7 @@ import type {
   OneTimeTokenConsumptionResult,
   PersistedIdentityReadModel,
   PersistedIdentityRegistration,
+  PersistedSessionReadModel,
   RefreshTokenRotationResult,
   RotateRefreshTokenInput,
 } from '@seneve/domain-identity';
@@ -189,6 +190,26 @@ export class PrismaIdentitySessionRepository implements IdentitySessionRepositor
     });
   }
 
+  async findSessionById(sessionId: string): Promise<PersistedSessionReadModel | null> {
+    const session = await this.prisma.session.findUnique({
+      where: {
+        id: sessionId,
+      },
+    });
+
+    return session
+      ? {
+          id: session.id,
+          identityId: session.identityId,
+          status: session.status,
+          version: session.version,
+          createdAt: session.createdAt,
+          expiresAt: session.expiresAt,
+          revokedAt: session.revokedAt,
+        }
+      : null;
+  }
+
   async rotateRefreshToken(input: RotateRefreshTokenInput): Promise<RefreshTokenRotationResult> {
     return inTransaction(this.prisma, async (tx) => {
       const rotationResult = await tx.refreshToken.updateMany({
@@ -251,6 +272,44 @@ export class PrismaIdentitySessionRepository implements IdentitySessionRepositor
         familyId: current.familyId,
       };
     });
+  }
+
+  async revokeSession(sessionId: string, revokedAt: Date): Promise<boolean> {
+    const result = await this.prisma.session.updateMany({
+      where: {
+        id: sessionId,
+        status: 'ACTIVE',
+      },
+      data: {
+        status: 'REVOKED',
+        revokedAt,
+        updatedAt: revokedAt,
+        version: {
+          increment: 1,
+        },
+      },
+    });
+
+    return result.count === 1;
+  }
+
+  async revokeAllSessionsForIdentity(identityId: string, revokedAt: Date): Promise<number> {
+    const result = await this.prisma.session.updateMany({
+      where: {
+        identityId,
+        status: 'ACTIVE',
+      },
+      data: {
+        status: 'REVOKED',
+        revokedAt,
+        updatedAt: revokedAt,
+        version: {
+          increment: 1,
+        },
+      },
+    });
+
+    return result.count;
   }
 }
 

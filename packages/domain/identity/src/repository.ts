@@ -53,6 +53,16 @@ export interface CreateSessionWithRefreshTokenInput {
   readonly refreshTokenExpiresAt: Date;
 }
 
+export interface PersistedSessionReadModel {
+  readonly id: string;
+  readonly identityId: string;
+  readonly status: SessionStatus;
+  readonly version: number;
+  readonly createdAt: Date;
+  readonly expiresAt: Date;
+  readonly revokedAt: Date | null;
+}
+
 export interface RotateRefreshTokenInput {
   readonly currentRefreshTokenId: string;
   readonly currentRefreshTokenHash: string;
@@ -111,7 +121,10 @@ export interface IdentityRepository {
 
 export interface IdentitySessionRepository {
   createSessionWithRefreshToken(input: CreateSessionWithRefreshTokenInput): Promise<void>;
+  findSessionById(sessionId: string): Promise<PersistedSessionReadModel | null>;
   rotateRefreshToken(input: RotateRefreshTokenInput): Promise<RefreshTokenRotationResult>;
+  revokeSession(sessionId: string, revokedAt: Date): Promise<boolean>;
+  revokeAllSessionsForIdentity(identityId: string, revokedAt: Date): Promise<number>;
 }
 
 export interface IdentityTokenRepository {
