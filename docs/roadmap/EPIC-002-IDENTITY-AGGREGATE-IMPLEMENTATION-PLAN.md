@@ -31,6 +31,28 @@ The aggregate owns authentication and account lifecycle invariants.
 
 The aggregate does not own organization membership, permissions, campaigns, payments, votes, fraud, workflows, billing, or reporting.
 
+The term "Identity Aggregate" defines the business boundary. It does not require every identity-related record to be persisted or loaded through one database object for routine authentication operations.
+
+## Invariants
+
+Identity invariants:
+
+- A normalized email address cannot belong to multiple active identities when it is used as a unique login identifier.
+- A credential must never expose or retain a plaintext secret.
+- A refresh token must be stored only as a secure hash or equivalent non-reversible representation.
+- Refresh-token reuse must revoke the affected token family according to the approved security policy.
+- An expired, revoked, or consumed verification token cannot be reused.
+- Authentication failure must not reveal whether a specific account exists.
+- Account suspension must invalidate or restrict active sessions according to the documented lifecycle.
+- Identity closure must preserve the minimum immutable audit history required by the platform.
+
+Practical aggregate-loading rules:
+
+- login may load identity, active password credential, email verification status, and session metadata only.
+- refresh may load the refresh-token session and token family only.
+- password reset may load identity, password credential, reset request, and sessions only.
+- login history and audit logs are append-only records and should not be loaded as mutable aggregate children for routine commands.
+
 ## Affected Packages and Modules
 
 Packages:
@@ -86,6 +108,23 @@ Key constraints:
 - login history append-only.
 - audit logs immutable.
 
+## Transaction Boundaries
+
+Identity transactions:
+
+- registration: create identity, user, primary email, password credential, email verification, domain event, and audit record atomically.
+- email verification: consume verification token, mark email verified, activate identity where eligible, emit event, and write audit atomically.
+- login success: validate credential, create session and refresh-token family, append login history, emit event, and write audit atomically.
+- login failure: append redacted login history/security event and audit without revealing account existence.
+- refresh token: rotate token, revoke reused token family if replay detected, emit event, and write audit atomically.
+- logout/session revocation: revoke session, clear refresh-token state, emit event, and write audit atomically.
+- password reset completion: consume reset token, change credential, revoke active sessions, emit event, and write audit atomically.
+
+Non-transactional external effects:
+
+- email delivery is triggered after durable state is recorded.
+- failed email delivery must not roll back identity state; it creates a retryable notification concern.
+
 Tenant note:
 
 - Identity tables are global unless they represent organization membership or tenant-owned records.
@@ -123,6 +162,42 @@ Audit-generating events:
 
 - all listed V1 identity events generate audit records except where privacy policy requires recording a security event with redacted target details.
 
+Domain event payload rules:
+
+- no raw credentials
+- no raw tokens
+- no password hashes
+- no OTP values
+- no unnecessary personal data
+- payloads are versioned
+- event names are stable
+
+## Error Taxonomy
+
+Identity error codes:
+
+- `EMAIL_ALREADY_EXISTS`
+- `WEAK_PASSWORD`
+- `INVALID_CREDENTIALS`
+- `EMAIL_NOT_VERIFIED`
+- `ACCOUNT_LOCKED`
+- `USER_SUSPENDED`
+- `USER_DEACTIVATED`
+- `ACCESS_TOKEN_EXPIRED`
+- `REFRESH_TOKEN_EXPIRED`
+- `REFRESH_TOKEN_REUSED`
+- `SESSION_REVOKED`
+- `RESET_TOKEN_INVALID`
+- `RESET_TOKEN_EXPIRED`
+- `VERIFICATION_TOKEN_INVALID`
+- `VERIFICATION_TOKEN_EXPIRED`
+- `RATE_LIMITED`
+- `VALIDATION_FAILED`
+
+Security response rule:
+
+- login, password reset request, and email verification resend must avoid account-enumeration signals.
+
 ## Required Migrations
 
 Migration name proposal:
@@ -142,6 +217,26 @@ Migration responsibilities:
 - include rollback guidance
 
 No migration should be generated until the full Epic 002 plan and this Identity Aggregate plan are approved.
+
+Rollback and recovery considerations:
+
+- table creation migrations can be rolled back before production data exists.
+- after production use, identity migrations should prefer forward repair migrations.
+- token and audit data must not be destructively rewritten.
+- failed partial deployments must preserve existing login/session integrity.
+
+## Blocking and Non-Blocking Open Items
+
+Blocking:
+
+- none in the Identity Aggregate design package after the latest approved decisions.
+
+Non-blocking:
+
+- email provider selection
+- production secret-management provider
+- first Platform Super Administrator bootstrap procedure
+- jurisdiction-specific audit retention period
 
 ## Testing Strategy
 

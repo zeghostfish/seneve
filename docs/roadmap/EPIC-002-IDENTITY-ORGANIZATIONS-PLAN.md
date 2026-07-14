@@ -560,6 +560,38 @@ Future permissions may be named but not implemented until later Epics:
 | Read audit logs         | `audit.read`                  | organization | active membership or admin path         | optional read audit                 |
 | Platform tenant access  | `platform.tenant.access`      | organization | reason required, admin path             | `platform.cross_tenant_access`      |
 
+## Aggregate Invariants
+
+Identity invariants:
+
+- A normalized email address cannot belong to multiple active identities when used as a unique login identifier.
+- A credential must never expose or retain a plaintext secret.
+- A refresh token must be stored only as a secure hash or equivalent non-reversible representation.
+- Refresh-token reuse must revoke the affected token family or session according to the approved security policy.
+- Expired, revoked, or consumed verification tokens cannot be reused.
+- Authentication failure must not reveal whether a specific account exists.
+- Account suspension must invalidate or restrict active sessions according to the documented lifecycle.
+- Identity closure must preserve the minimum immutable audit history required by the platform.
+
+Organization invariants:
+
+- Every active organization must have at least one active owner.
+- The last active owner cannot be removed, suspended, or downgraded without a valid ownership transfer.
+- A user cannot hold duplicate active memberships in the same organization.
+- An invitation cannot be accepted after expiration, revocation, or prior consumption.
+- An accepted invitation cannot be replayed.
+- Membership role changes require the appropriate permission and tenant scope.
+- Cross-tenant membership operations are prohibited.
+- Organization suspension must not delete historical data.
+
+Permission invariants:
+
+- Permissions are denied by default.
+- Tenant context is mandatory for organization-scoped actions.
+- Platform-level permissions must not be inferred from organization roles.
+- Cross-tenant administrative actions require a dedicated privileged path.
+- Every privileged cross-tenant action must include a reason, correlation id, and immutable audit record.
+
 ## Policy Evaluation Rules
 
 Authorization decision inputs:
@@ -720,6 +752,21 @@ Migration constraints:
 
 No migration should be created until this proposal is approved.
 
+## Transaction Boundaries
+
+Identity transactions are defined in `EPIC-002-IDENTITY-AGGREGATE-IMPLEMENTATION-PLAN.md`.
+
+Organization transactions:
+
+- organization creation: create organization, owner membership, role assignment, domain event, and audit record atomically.
+- invitation creation: create invitation and audit record atomically; email delivery is asynchronous.
+- invitation acceptance: consume invitation, create or activate membership, assign role, emit event, and audit atomically.
+- membership role change: update assignment, enforce last-owner invariant, emit event, and audit atomically.
+- ownership transfer: assign new owner, preserve at least one owner throughout, emit event, and audit atomically.
+- organization suspension/closure/archive: update status, enforce lifecycle rules, emit event, and audit atomically.
+
+Permission evaluation must occur before mutating transactions begin, and the final mutation must still enforce database constraints.
+
 ## Data Lifecycle
 
 Soft-deletable records:
@@ -766,6 +813,65 @@ Personal-data deletion requests:
 - preserve immutable audit records required for integrity and compliance
 - store deletion request audit event
 - never delete audit logs directly
+
+## Error Taxonomy
+
+Identity and authentication:
+
+- `EMAIL_ALREADY_EXISTS`
+- `WEAK_PASSWORD`
+- `INVALID_CREDENTIALS`
+- `EMAIL_NOT_VERIFIED`
+- `ACCOUNT_LOCKED`
+- `USER_SUSPENDED`
+- `USER_DEACTIVATED`
+- `ACCESS_TOKEN_EXPIRED`
+- `REFRESH_TOKEN_EXPIRED`
+- `REFRESH_TOKEN_REUSED`
+- `SESSION_REVOKED`
+- `RESET_TOKEN_INVALID`
+- `RESET_TOKEN_EXPIRED`
+- `VERIFICATION_TOKEN_INVALID`
+- `VERIFICATION_TOKEN_EXPIRED`
+
+Organization and membership:
+
+- `ORGANIZATION_SLUG_TAKEN`
+- `ORG_NOT_FOUND`
+- `ORG_NOT_ACTIVE`
+- `ORG_STATE_INVALID`
+- `ORG_HAS_BLOCKING_OPERATIONS`
+- `MEMBERSHIP_ALREADY_EXISTS`
+- `MEMBERSHIP_NOT_FOUND`
+- `MEMBERSHIP_NOT_ACTIVE`
+- `LAST_OWNER_INVALID`
+- `TARGET_NOT_ACTIVE_MEMBER`
+- `ROLE_INVALID`
+
+Invitation:
+
+- `INVITATION_ALREADY_PENDING`
+- `INVITATION_NOT_FOUND`
+- `INVITATION_NOT_PENDING`
+- `INVITATION_EXPIRED`
+- `INVITATION_REVOKED`
+- `INVITATION_REPLAYED`
+
+Authorization and tenant isolation:
+
+- `UNAUTHENTICATED`
+- `FORBIDDEN`
+- `TENANT_SCOPE_REQUIRED`
+- `TENANT_SCOPE_MISMATCH`
+- `POLICY_DENIED`
+- `PLATFORM_ADMIN_REASON_REQUIRED`
+
+Shared:
+
+- `VALIDATION_FAILED`
+- `RATE_LIMITED`
+- `CONFLICT`
+- `INTERNAL_ERROR`
 
 ## API Contracts
 
@@ -1051,7 +1157,13 @@ Epic 002 can be considered complete only when:
 
 The following operational selections remain external but do not change the core design:
 
+Non-blocking:
+
 1. Email provider for verification and recovery delivery.
 2. Platform Super Administrator bootstrap method for the first production environment.
 3. Final production secret-management provider.
 4. Legal retention period for identity audit logs by operating jurisdiction.
+
+Blocking:
+
+- none after the latest approved Identity, Organization, Permission Evaluation, event, and invariant decisions.

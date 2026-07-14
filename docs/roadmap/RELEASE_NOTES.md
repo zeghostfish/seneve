@@ -18,6 +18,8 @@
 - Formalized Organization aggregate boundaries for future subscription, billing, and API key support.
 - Added Permission Evaluation Service as the centralized authorization decision point.
 - Added Identity Aggregate implementation plan.
+- Added explicit identity, organization, and permission invariants.
+- Added Epic 002 error taxonomy, transaction boundaries, rollback considerations, and readiness report.
 
 ### Foundation
 
