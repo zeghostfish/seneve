@@ -4,7 +4,7 @@
 
 Design approved. Local implementation authorized by project-owner waiver.
 
-Implementation must follow the approved phase order. Phase 1 is limited to Identity Aggregate domain types, invariants, domain events, and unit tests with no persistence, controllers, Prisma models, migrations, or REST API.
+Implementation must follow the approved phase order. Phase 2 is limited to Identity persistence, repositories, migrations, transaction boundaries, and persistence tests with no controllers or REST API.
 
 ## Objective
 
@@ -58,7 +58,7 @@ Excluded:
 
 ### Phase 1 - Identity Aggregate
 
-Status: in progress.
+Status: complete.
 
 Implemented locally:
 
@@ -82,6 +82,32 @@ Not implemented in Phase 1:
 - organization aggregate implementation.
 - tenant isolation.
 - audit persistence.
+
+### Phase 2 - Identity Persistence
+
+Status: in progress.
+
+Implemented locally:
+
+- Identity-related Prisma models and enums.
+- Versioned SQL migration for Identity persistence.
+- PostgreSQL partial unique indexes and check constraints for critical invariants.
+- `@seneve/identity-persistence` package outside the domain layer.
+- Repository interfaces in the domain boundary using explicit command/read models.
+- Prisma repository adapters with explicit mapping and transaction boundaries.
+- PostgreSQL-gated integration tests for repository behavior and database constraints.
+
+Not implemented in Phase 2:
+
+- controllers.
+- public authentication endpoints.
+- registration/login application services.
+- password hashing execution.
+- token generation.
+- email delivery.
+- organization persistence.
+- tenant RLS.
+- generic audit persistence.
 
 ## Confirmed V1 Authentication Decisions
 

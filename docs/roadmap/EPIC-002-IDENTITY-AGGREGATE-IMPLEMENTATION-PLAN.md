@@ -2,9 +2,9 @@
 
 ## Status
 
-Phase 1 implementation in progress under the approved Local Implementation Waiver.
+Phase 2 implementation in progress under the approved Local Implementation Waiver.
 
-The waiver authorizes Epic 002 local implementation before GitHub publication. Phase 1 remains limited to domain entities, value objects, invariants, domain events, and unit tests. Persistence, Prisma models, migrations, controllers, and services remain deferred to later phases.
+The waiver authorizes Epic 002 local implementation before GitHub publication. Phase 2 remains limited to persistence, repositories, migrations, transaction boundaries, and persistence tests. Controllers, public authentication endpoints, organization implementation, tenant RLS, and generic audit persistence remain deferred to later phases.
 
 ## Objective
 
@@ -58,6 +58,7 @@ Practical aggregate-loading rules:
 Packages:
 
 - `packages/domain/identity`
+- `packages/identity-persistence`
 - `packages/domain/organization` for integration contracts only
 - `packages/shared`
 - `packages/contracts`
@@ -110,19 +111,30 @@ Explicitly deferred:
 
 ## Database Entities to Introduce
 
-Proposed tables:
+Phase 2 tables:
 
 - `identities`
 - `users`
+- `identity_emails`
 - `credentials`
-- `email_addresses`
-- `phone_numbers`
 - `sessions`
 - `refresh_tokens`
-- `password_resets`
-- `email_verifications`
-- `login_history`
-- `audit_logs`
+- `email_verification_tokens`
+- `password_reset_tokens`
+- `identity_security_events`
+
+Deferred tables:
+
+- `phone_numbers`
+- authentication-provider identities
+- generic `audit_logs`
+
+Persistence decision:
+
+- `Identity` and `User` use separate tables.
+- `identities` stores authentication lifecycle, login uniqueness, and suspension/closure state.
+- `users` stores the person/profile record and never stores credentials, emails, sessions, or tokens.
+- This avoids coupling authentication directly to `User` while keeping the one-to-one relationship simple for V1.
 
 Key constraints:
 
@@ -135,6 +147,13 @@ Key constraints:
 - login history append-only.
 - audit logs immutable.
 
+Phase 2 migration:
+
+- `database/migrations/20260714234500_identity_persistence/migration.sql`
+- creates the Identity persistence tables, enums, foreign keys, indexes, partial unique indexes, and check constraints.
+- rollback before production data can drop the created tables and enums in reverse dependency order.
+- after production use, identity persistence should be corrected through forward migrations rather than destructive rollback.
+
 ## Transaction Boundaries
 
 Identity transactions:
@@ -146,6 +165,15 @@ Identity transactions:
 - refresh token: rotate token, revoke reused token family if replay detected, emit event, and write audit atomically.
 - logout/session revocation: revoke session, clear refresh-token state, emit event, and write audit atomically.
 - password reset completion: consume reset token, change credential, revoke active sessions, emit event, and write audit atomically.
+
+Phase 2 repository transaction boundaries:
+
+- identity registration with user, primary email, and password credential is one create operation.
+- session creation with initial refresh token is one create operation.
+- refresh-token rotation uses a conditional `ACTIVE` token update and creates the replacement token in the same transaction.
+- refresh-token replay revokes the token family and affected active sessions in the same transaction.
+- email-verification and password-reset token consumption use conditional `PENDING` token updates.
+- identity suspension and active-session revocation happen in one transaction.
 
 Non-transactional external effects:
 
@@ -285,6 +313,22 @@ Integration tests:
 
 - register identity
 - verify email
+- identity persistence and rehydration
+- normalized email uniqueness
+- credential persistence without plaintext values
+- session creation
+- refresh-token rotation
+- repeated refresh-token consumption
+- email-verification token single use
+- password-reset token single use
+- identity suspension and session revocation
+- transaction rollback on failure
+
+PostgreSQL execution note:
+
+- repository integration tests are gated behind `RUN_POSTGRES_INTEGRATION=true` and require `DATABASE_URL`.
+- they must run against PostgreSQL after migrations are applied.
+- local validation may report them as skipped when PostgreSQL is unavailable; skipped tests are not equivalent to database validation.
 - login
 - refresh token
 - logout
