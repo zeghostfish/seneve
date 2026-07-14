@@ -17,6 +17,7 @@
       "@seneve/shared": ["packages/shared/src/index.ts"],
       "@seneve/contracts": ["packages/contracts/src/index.ts"],
       "@seneve/domain-identity": ["packages/domain/identity/src/index.ts"],
+      "@seneve/identity-persistence": ["packages/identity-persistence/src/index.ts"],
       "@seneve/testing": ["packages/testing/src/index.ts"]
     }
   }
