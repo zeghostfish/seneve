@@ -2,9 +2,9 @@
 
 ## Status
 
-Planning / Design Review.
+Design approved. Local implementation authorized by project-owner waiver.
 
-No migrations, application modules, Prisma models, API controllers, or business implementation may be created until this plan and the design-review report are approved.
+Implementation must follow the approved phase order. Phase 1 is limited to Identity Aggregate domain types, invariants, domain events, and unit tests with no persistence, controllers, Prisma models, migrations, or REST API.
 
 ## Objective
 
@@ -53,6 +53,35 @@ Excluded:
 - enterprise identity federation
 - phone-number login
 - SMS verification
+
+## Implementation Progress
+
+### Phase 1 - Identity Aggregate
+
+Status: in progress.
+
+Implemented locally:
+
+- `@seneve/domain-identity` package.
+- Identity aggregate root with registration, email-verification activation, authentication eligibility checks, session attachment, and suspension session-revocation behavior.
+- Email, identity id, password-hash, token-hash, password-policy, credential, session, refresh-token, email-verification, and password-reset domain abstractions.
+- Stable identity domain error codes.
+- Versioned identity domain-event contracts.
+- Unit tests for email normalization, registration events, email-verification activation, authentication gating, session revocation on suspension, password-hash protection, password-policy validation, refresh-token reuse detection, and one-time verification token reuse/expiry.
+
+Not implemented in Phase 1:
+
+- Prisma schema.
+- database migrations.
+- repositories.
+- transaction management.
+- NestJS modules.
+- controllers.
+- public authentication endpoints.
+- email delivery.
+- organization aggregate implementation.
+- tenant isolation.
+- audit persistence.
 
 ## Confirmed V1 Authentication Decisions
 

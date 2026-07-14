@@ -34,10 +34,17 @@
 - Added GitHub Actions CI workflow.
 - Added structured logging and correlation ID foundations.
 
+### Identity And Organizations
+
+- Started Epic 002 local implementation under the approved Local Implementation Waiver.
+- Created the `@seneve/domain-identity` package for Phase 1 domain-only Identity Aggregate work.
+- Added Identity aggregate, identity value objects, credential/session/refresh-token models, one-time token models, stable domain error codes, and versioned identity domain-event contracts.
+- Added unit tests for Identity registration, email verification, authentication gating, suspension session revocation, password-hash protection, password-policy validation, refresh-token reuse detection, and one-time verification token reuse/expiry.
+
 ### Known Limitations
 
 - Repository has been initialized locally, but no official GitHub remote is configured.
 - Official GitHub remote has not been provided or confirmed.
 - GitHub Actions has not run remotely.
 - Docker image build and Docker Compose startup validation have not run locally because Docker was unavailable.
-- No business functionality has been implemented.
+- Epic 002 Phase 1 has no persistence, migrations, repositories, controllers, public API, email delivery, tenant isolation, or audit persistence.

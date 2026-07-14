@@ -126,6 +126,8 @@ importers:
 
   packages/contracts: {}
 
+  packages/domain/identity: {}
+
   packages/shared: {}
 
   packages/testing: {}

@@ -2,9 +2,9 @@
 
 ## Status
 
-Planning only.
+Phase 1 implementation in progress under the approved Local Implementation Waiver.
 
-Do not implement source code, Prisma models, migrations, controllers, or services until this plan is approved and the GitHub publication requirements for Epic 001 are resolved or explicitly waived.
+The waiver authorizes Epic 002 local implementation before GitHub publication. Phase 1 remains limited to domain entities, value objects, invariants, domain events, and unit tests. Persistence, Prisma models, migrations, controllers, and services remain deferred to later phases.
 
 ## Objective
 
@@ -80,6 +80,33 @@ Documentation:
 - `docs/roadmap/EPIC-002-IDENTITY-ORGANIZATIONS-PLAN.md`
 - `docs/roadmap/RELEASE_NOTES.md`
 - OpenAPI documentation generated from API decorators after implementation
+
+## Phase 1 Local Implementation Scope
+
+Implemented:
+
+- Identity aggregate root.
+- Password credential abstraction.
+- Email address normalization and verification state.
+- Password hash and token hash value objects that reject plaintext or reversible token material.
+- Password policy validation utility.
+- Session and refresh-token state transitions.
+- Email-verification and password-reset one-time token state transitions.
+- Stable identity domain error codes.
+- Versioned identity domain-event contracts.
+- Unit tests for approved Identity invariants.
+
+Explicitly deferred:
+
+- password hashing execution with Argon2id.
+- token generation.
+- persistence and repositories.
+- migrations.
+- transaction boundaries in application services.
+- email delivery.
+- controllers and OpenAPI decorators.
+- audit log persistence.
+- organization integration.
 
 ## Database Entities to Introduce
 
@@ -246,7 +273,7 @@ Unit tests:
 - email normalization
 - password policy
 - credential creation
-- Argon2id hashing wrapper behavior
+- password hash storage format protection
 - session state transitions
 - refresh-token rotation
 - refresh-token reuse detection
