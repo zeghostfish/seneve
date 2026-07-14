@@ -2,7 +2,9 @@
 
 ## Status
 
-Planned
+Provisionally accepted, pending GitHub publication and remote CI validation.
+
+Epic 001 remains open until all mandatory remote and Docker validation checks are complete.
 
 ## Objective
 
@@ -230,6 +232,234 @@ Deployment should not be automated to production in Epic 001 unless the target e
 - Add database migration guide.
 - Add testing guide.
 - Add release notes placeholder.
+
+## Implemented Repository Tree
+
+The current tracked repository tree is:
+
+```text
+.editorconfig
+.env.example
+.github/workflows/ci.yml
+.gitignore
+.prettierignore
+.prettierrc.json
+AGENTS.md
+ARCHITECTURE_DECISIONS.md
+PROMPTS.md
+README.md
+apps/api/
+apps/web/
+apps/worker/
+database/migrations/
+database/prisma/schema.prisma
+database/seed/
+docker-compose.yml
+docs/
+eslint.config.mjs
+infra/docker/
+package.json
+packages/config/
+packages/contracts/
+packages/domain/
+packages/shared/
+packages/testing/
+packages/ui/
+pnpm-lock.yaml
+pnpm-workspace.yaml
+tools/
+tsconfig.base.json
+vitest.config.ts
+```
+
+## Runtime and Package Manager
+
+- Node.js: `v24.14.0` during local implementation.
+- pnpm: `10.14.0`, pinned through the root `packageManager` field.
+- Lockfile: `pnpm-lock.yaml` is committed.
+- CI uses Corepack with frozen lockfile installation.
+
+## Application Ports
+
+- API: `3000`
+- Web: `3001`
+- Worker health: `3002`
+- PostgreSQL: `5432`
+- Redis: `6379`
+
+## Environment Variables
+
+Required foundation variables:
+
+- `DATABASE_URL`
+- `REDIS_URL`
+
+Optional or defaulted foundation variables:
+
+- `NODE_ENV`
+- `LOG_LEVEL`
+- `API_PORT`
+- `WEB_PORT`
+- `WORKER_HEALTH_PORT`
+- `OTEL_SERVICE_NAME`
+
+Auth-related placeholder variables in `.env.example`:
+
+- `JWT_ACCESS_TOKEN_SECRET`
+- `JWT_REFRESH_TOKEN_SECRET`
+
+These are placeholders only. Real secrets must never be committed.
+
+## Installation and Validation Commands
+
+```bash
+corepack pnpm install
+corepack pnpm db:validate
+corepack pnpm format:check
+corepack pnpm lint
+corepack pnpm typecheck
+corepack pnpm test
+corepack pnpm build
+```
+
+## Startup Commands
+
+```bash
+cp .env.example .env
+docker compose up postgres redis
+corepack pnpm dev
+```
+
+Endpoints:
+
+- API health: `http://localhost:3000/api/v1/health`
+- API readiness: `http://localhost:3000/api/v1/ready`
+- OpenAPI: `http://localhost:3000/api/docs`
+- Web: `http://localhost:3001`
+- Worker health: `http://localhost:3002`
+
+## Local Validation Completed
+
+The following local checks passed:
+
+- Prisma schema validation
+- formatting check
+- linting
+- TypeScript type checking
+- unit tests
+- production build
+
+Current test coverage is foundation-level only:
+
+- configuration validation
+- API health controller
+- worker health server
+- structured log entry helper
+
+## Docker Validation Status
+
+Docker was not installed or not available on PATH during local implementation.
+
+The following checks remain mandatory before closing Epic 001:
+
+```bash
+docker compose config
+docker compose build
+docker compose up -d postgres redis
+docker compose ps
+```
+
+Then validate:
+
+```bash
+corepack pnpm db:validate
+corepack pnpm dev
+```
+
+Required runtime confirmations:
+
+- API health endpoint returns success.
+- API readiness endpoint checks PostgreSQL and Redis availability.
+- Web application loads.
+- Worker health endpoint responds.
+- Logs are structured JSON.
+- Correlation ID header is set by API request middleware.
+
+## GitHub Publication Status
+
+Local branches:
+
+- `main`
+- `feature/foundation`
+
+Local commits:
+
+- `732e32a chore(foundation): bootstrap repository documentation and workspace`
+- `78a1504 test(foundation): add workspace quality baseline`
+- `9dd5e39 feat(foundation): initialize api web and worker shells`
+- `8a716ae feat(foundation): add database redis docker and ci baseline`
+- `b9b8232 feat(foundation): add observability and local development docs`
+
+No official GitHub remote is configured yet.
+
+Do not force-push if the remote already contains commits. Inspect and reconcile histories safely.
+
+Required publication commands once the official remote is available:
+
+```bash
+git remote add origin <official-repository-url>
+git remote -v
+git push -u origin main
+git push -u origin feature/foundation
+```
+
+## Pull Request Requirements
+
+Open a Pull Request from `feature/foundation` into `main`.
+
+Suggested title:
+
+```text
+feat(foundation): establish Seneve monorepo and infrastructure baseline
+```
+
+The PR must include:
+
+- Epic objective
+- implemented components
+- repository structure
+- local validation results
+- Docker validation status
+- Prisma schema status
+- environment variables required
+- local startup instructions
+- known limitations
+- checklist of remaining validation items
+
+## Architectural Decisions Introduced
+
+Epic 001 incorporated and documented:
+
+- Campaign-centric architecture
+- Campaign templates
+- Financial Platform
+- multi-layer tenant isolation
+- rich authorization model
+- expanded voting lifecycle
+- interface-independent business logic
+- reduced V1 scope
+
+Implementation-level foundation decisions:
+
+- pnpm workspace monorepo
+- Node.js 24 runtime baseline
+- NestJS API shell
+- Next.js web shell
+- BullMQ-ready worker shell
+- Prisma schema shell without business entities
+- structured JSON log entry helper
+- API correlation ID middleware
+- health/readiness split
 
 ## Implementation Sequence
 

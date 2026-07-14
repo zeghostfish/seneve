@@ -9,6 +9,8 @@
 - Added initial database schema reference.
 - Added Epic 001 Foundation implementation plan.
 - Added local development documentation.
+- Updated Epic 001 status with provisional acceptance, final local validation, Docker validation gap, GitHub publication status, runtime versions, ports, environment variables, startup commands, and PR requirements.
+- Added Epic 002 Identity and Organizations planning document.
 
 ### Foundation
 
@@ -27,4 +29,6 @@
 
 - Repository has been initialized locally, but no official GitHub remote is configured.
 - Official GitHub remote has not been provided or confirmed.
+- GitHub Actions has not run remotely.
+- Docker image build and Docker Compose startup validation have not run locally because Docker was unavailable.
 - No business functionality has been implemented.
