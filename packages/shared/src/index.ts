@@ -5,3 +5,6 @@ export interface HealthResponse {
   service: string;
   timestamp: string;
 }
+
+export * from './logger.js';
+export * from './observability.js';
