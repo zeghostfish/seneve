@@ -5,7 +5,15 @@ export default tseslint.config(
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
-    ignores: ['dist/**', 'build/**', '.next/**', 'coverage/**', 'work/**', 'outputs/**'],
+    ignores: [
+      '**/dist/**',
+      '**/build/**',
+      '**/.next/**',
+      '**/coverage/**',
+      'work/**',
+      'outputs/**',
+      '**/*.tsbuildinfo',
+    ],
   },
   {
     files: ['**/*.ts', '**/*.tsx'],

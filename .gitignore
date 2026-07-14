@@ -4,11 +4,14 @@ node_modules/
 
 # Build outputs
 dist/
+**/dist/
 build/
 .next/
+**/.next/
 coverage/
 playwright-report/
 test-results/
+*.tsbuildinfo
 
 # Environment
 .env
@@ -17,6 +20,7 @@ test-results/
 
 # Logs
 *.log
+*.js.map
 npm-debug.log*
 pnpm-debug.log*
 yarn-debug.log*
@@ -36,4 +40,3 @@ outputs/
 # Database
 *.db
 *.sqlite
-

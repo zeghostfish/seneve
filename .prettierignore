@@ -1,9 +1,11 @@
 node_modules
 dist
+**/dist
 build
 .next
+**/.next
 coverage
 work
 outputs
 pnpm-lock.yaml
-
+*.tsbuildinfo

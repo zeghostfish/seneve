@@ -1,0 +1,19 @@
+{
+  "name": "@seneve/worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "clean": "rm -rf dist",
+    "dev": "tsx watch src/main.ts",
+    "start": "node dist/apps/worker/src/main.js",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@seneve/config": "workspace:*",
+    "@seneve/shared": "workspace:*",
+    "bullmq": "^5.65.0",
+    "ioredis": "^5.8.2"
+  }
+}
