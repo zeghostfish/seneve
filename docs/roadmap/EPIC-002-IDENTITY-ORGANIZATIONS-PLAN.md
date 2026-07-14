@@ -4,7 +4,7 @@
 
 Design approved. Local implementation authorized by project-owner waiver.
 
-Implementation must follow the approved phase order. Phase 2 is limited to Identity persistence, repositories, migrations, transaction boundaries, and persistence tests with no controllers or REST API.
+Implementation must follow the approved phase order. Phase 3 is limited to authentication application services and supporting cryptographic abstractions with no controllers or REST API.
 
 ## Objective
 
@@ -85,7 +85,7 @@ Not implemented in Phase 1:
 
 ### Phase 2 - Identity Persistence
 
-Status: in progress.
+Status: implemented, persistence validation pending.
 
 Implemented locally:
 
@@ -108,6 +108,34 @@ Not implemented in Phase 2:
 - organization persistence.
 - tenant RLS.
 - generic audit persistence.
+
+### Phase 3 - Authentication Application Services
+
+Status: in progress.
+
+Implemented locally:
+
+- `@seneve/identity-application` package.
+- `@seneve/identity-crypto` package.
+- Authentication service contracts for password hashing, token generation, token hashing, access-token issuing, clock, unit of work, and security-event recording.
+- Registration application service with password policy validation, Argon2id hash boundary, email-verification token creation, and generic conflict mapping.
+- Login application service with normalized identifier lookup, generic invalid-credential errors, email-verification enforcement, suspended-identity enforcement, session creation, access-token issuance, and refresh-token hash persistence.
+- Refresh application service with token hashing, repository-level rotation, replay handling, replacement token issuance, and security-event recording.
+- Logout, all-session revocation, and identity suspension application commands.
+- Native Node Argon2id password hasher with the approved V1 parameters.
+- HMAC-SHA-256 token hasher and minimal signed access-token issuer.
+
+Not implemented in Phase 3:
+
+- NestJS controllers.
+- public authentication endpoints.
+- cookies.
+- OpenAPI authentication routes.
+- email-provider delivery.
+- Redis-backed rate limiting and lockout.
+- email-verification completion service.
+- password-reset service.
+- organization implementation.
 
 ## Confirmed V1 Authentication Decisions
 

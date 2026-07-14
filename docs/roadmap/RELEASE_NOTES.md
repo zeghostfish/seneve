@@ -41,6 +41,7 @@
 - Added Identity aggregate, identity value objects, credential/session/refresh-token models, one-time token models, stable domain error codes, and versioned identity domain-event contracts.
 - Added unit tests for Identity registration, email verification, authentication gating, suspension session revocation, password-hash protection, password-policy validation, refresh-token reuse detection, and one-time verification token reuse/expiry.
 - Added Phase 2 Identity persistence schema, migration, repository contracts, Prisma adapters, transaction boundaries, and PostgreSQL-gated integration tests.
+- Added Phase 3 authentication application services, crypto abstractions, native Node Argon2id password hasher, token hashing, access-token issuing, and unit tests for registration, login, refresh, logout, revocation, and suspension flows.
 
 ### Known Limitations
 
@@ -48,5 +49,5 @@
 - Official GitHub remote has not been provided or confirmed.
 - GitHub Actions has not run remotely.
 - Docker image build and Docker Compose startup validation have not run locally because Docker was unavailable.
-- Epic 002 Phase 2 has no controllers, public API, registration/login application services, token generation, email delivery, organization persistence, tenant isolation, or generic audit persistence.
+- Epic 002 Phase 3 has no controllers, public API, cookies, OpenAPI authentication routes, email-provider delivery, Redis-backed rate limiting, organization persistence, tenant isolation, or generic audit persistence.
 - PostgreSQL repository integration tests are present but skipped locally unless `RUN_POSTGRES_INTEGRATION=true` and `DATABASE_URL` point to a migrated PostgreSQL database.

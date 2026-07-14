@@ -2,9 +2,9 @@
 
 ## Status
 
-Phase 2 implementation in progress under the approved Local Implementation Waiver.
+Phase 3 implementation in progress under the approved Local Implementation Waiver.
 
-The waiver authorizes Epic 002 local implementation before GitHub publication. Phase 2 remains limited to persistence, repositories, migrations, transaction boundaries, and persistence tests. Controllers, public authentication endpoints, organization implementation, tenant RLS, and generic audit persistence remain deferred to later phases.
+The waiver authorizes Epic 002 local implementation before GitHub publication. Phase 3 remains limited to authentication application services and supporting cryptographic abstractions. Controllers, public authentication endpoints, organization implementation, tenant RLS, and generic audit persistence remain deferred to later phases.
 
 ## Objective
 
@@ -58,6 +58,8 @@ Practical aggregate-loading rules:
 Packages:
 
 - `packages/domain/identity`
+- `packages/identity-application`
+- `packages/identity-crypto`
 - `packages/identity-persistence`
 - `packages/domain/organization` for integration contracts only
 - `packages/shared`
@@ -175,6 +177,14 @@ Phase 2 repository transaction boundaries:
 - email-verification and password-reset token consumption use conditional `PENDING` token updates.
 - identity suspension and active-session revocation happen in one transaction.
 
+Phase 3 application-service transaction boundaries:
+
+- registration hashes the password before persistence, then creates identity, user, primary email, credential, email-verification token, and security event in one unit of work.
+- login validates identity state and password, then creates session, refresh token, and security event in one unit of work before issuing the access token.
+- refresh-token rotation delegates the conditional rotation and replay response to the session repository, then issues a replacement access token only after a successful rotation.
+- logout and session revocation are idempotent application commands.
+- identity suspension delegates session revocation to the repository and records an identity-specific security event.
+
 Non-transactional external effects:
 
 - email delivery is triggered after durable state is recorded.
@@ -227,6 +237,90 @@ Domain event payload rules:
 - payloads are versioned
 - event names are stable
 
+## Phase 3 Application Services
+
+Application package:
+
+- `@seneve/identity-application`
+
+Infrastructure-sensitive interfaces:
+
+- `PasswordHasher`
+- `TokenGenerator`
+- `TokenHasher`
+- `AccessTokenIssuer`
+- `Clock`
+- `SecurityEventRecorder`
+- `IdentityUnitOfWork`
+- Identity repository contracts
+
+Implemented use cases:
+
+- identity registration
+- password credential creation through the configured hasher boundary
+- login
+- session creation
+- access-token issuance
+- refresh-token rotation
+- refresh-token replay response
+- current-session logout
+- all-session revocation
+- identity suspension enforcement
+
+Explicitly deferred:
+
+- NestJS controllers
+- public HTTP DTOs
+- cookies
+- OpenAPI authentication endpoints
+- email-provider delivery
+- Redis-backed brute-force protection
+- email-verification completion service
+- password-reset service
+
+## Phase 3 Cryptographic Abstractions
+
+Crypto package:
+
+- `@seneve/identity-crypto`
+
+Implemented adapters:
+
+- `NodeArgon2idPasswordHasher`
+- `NodeOpaqueTokenGenerator`
+- `HmacSha256TokenHasher`
+- `HmacAccessTokenIssuer`
+
+Argon2id configuration:
+
+- memory: 65,536 KiB
+- passes: 3
+- parallelism: 1
+- tag length: 32 bytes
+- salt length: 16 bytes
+
+Access-token payload:
+
+- `sub`
+- `identity_id`
+- `session_id`
+- `token_version`
+- `iat`
+- `exp`
+- issuer and audience
+
+Access-token exclusions:
+
+- no organization roles
+- no permissions
+- no long-lived authorization state
+
+Rate-limit boundary:
+
+- application services record `LOGIN_FAILED` facts and preserve generic external errors.
+- Redis-backed rate limiting and per-IP controls are deferred to the API/security integration phase.
+- Phase 3 must not be described as full brute-force protection.
+
 ## Error Taxonomy
 
 Identity error codes:
@@ -248,6 +342,20 @@ Identity error codes:
 - `VERIFICATION_TOKEN_EXPIRED`
 - `RATE_LIMITED`
 - `VALIDATION_FAILED`
+
+Phase 3 application error codes:
+
+- `INVALID_CREDENTIALS`
+- `IDENTITY_SUSPENDED`
+- `EMAIL_VERIFICATION_REQUIRED`
+- `SESSION_INVALID`
+- `SESSION_REVOKED`
+- `REFRESH_TOKEN_INVALID`
+- `REFRESH_TOKEN_EXPIRED`
+- `REFRESH_TOKEN_REUSED`
+- `REGISTRATION_CONFLICT`
+- `PASSWORD_POLICY_VIOLATION`
+- `AUTHENTICATION_TRANSACTION_FAILED`
 
 Security response rule:
 
@@ -308,6 +416,17 @@ Unit tests:
 - password reset state transitions
 - email verification state transitions
 - domain event emission
+- registration application flow
+- duplicate registration conflict mapping
+- password-policy failure
+- login success and failure
+- suspended and unverified login rejection
+- refresh-token rotation
+- refresh-token replay response
+- logout, all-session revocation, and suspension application flows
+- Argon2id hashing and verification adapter
+- token hashing adapter
+- access-token payload exclusions
 
 Integration tests:
 
