@@ -10,6 +10,8 @@
   "scripts": {
     "build": "corepack pnpm -r --if-present build",
     "clean": "corepack pnpm -r --if-present clean",
+    "db:generate": "DATABASE_URL=${DATABASE_URL:-postgresql://seneve:seneve@localhost:5432/seneve?schema=public} prisma generate --schema database/prisma/schema.prisma",
+    "db:validate": "DATABASE_URL=${DATABASE_URL:-postgresql://seneve:seneve@localhost:5432/seneve?schema=public} prisma validate --schema database/prisma/schema.prisma",
     "dev": "corepack pnpm --parallel --filter @seneve/api --filter @seneve/web --filter @seneve/worker dev",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
@@ -21,8 +23,10 @@
   "devDependencies": {
     "@eslint/js": "^9.32.0",
     "@types/node": "^24.1.0",
+    "@prisma/client": "^6.19.3",
     "eslint": "^9.32.0",
     "prettier": "^3.6.2",
+    "prisma": "^6.19.0",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.38.0",
     "vitest": "^3.2.4"

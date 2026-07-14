@@ -1,0 +1,13 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Epic 001 intentionally does not define business models.
+// Future business tables must be documented in docs/database/DATABASE_SCHEMA.md
+// before migrations are created.
+

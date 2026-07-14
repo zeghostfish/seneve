@@ -1,0 +1,81 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - feature/foundation
+
+jobs:
+  quality:
+    name: Quality
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: seneve
+          POSTGRES_USER: seneve
+          POSTGRES_PASSWORD: seneve
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U seneve -d seneve"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://seneve:seneve@localhost:5432/seneve?schema=public
+      REDIS_URL: redis://localhost:6379
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Install dependencies
+        run: corepack pnpm install --frozen-lockfile
+
+      - name: Validate Prisma schema
+        run: corepack pnpm db:validate
+
+      - name: Check formatting
+        run: corepack pnpm format:check
+
+      - name: Lint
+        run: corepack pnpm lint
+
+      - name: Typecheck
+        run: corepack pnpm typecheck
+
+      - name: Test
+        run: corepack pnpm test
+
+      - name: Build
+        run: corepack pnpm build
+
+      - name: Validate Docker builds
+        run: |
+          docker build -f infra/docker/api.Dockerfile .
+          docker build -f infra/docker/web.Dockerfile .
+          docker build -f infra/docker/worker.Dockerfile .

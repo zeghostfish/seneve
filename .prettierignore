@@ -9,3 +9,4 @@ work
 outputs
 pnpm-lock.yaml
 *.tsbuildinfo
+apps/web/next-env.d.ts
