@@ -2,13 +2,13 @@
 
 ## Status
 
-Planning only.
+Planning / Design Review.
 
-No migrations, application modules, or business implementation may be created until this plan is reviewed and approved.
+No migrations, application modules, Prisma models, API controllers, or business implementation may be created until this plan and the design-review report are approved.
 
 ## Objective
 
-Define the Identity, Authentication, Authorization, Organizations, Membership, Invitation, and Tenant Isolation design for Seneve.
+Define the Identity, Authentication, Session, Authorization, Organizations, Membership, Invitation, Audit, and Tenant Isolation design for Seneve.
 
 Epic 002 establishes who can access the platform, how sessions work, how users belong to organizations, and how tenant isolation is enforced before Campaign functionality begins.
 
@@ -16,13 +16,13 @@ Epic 002 establishes who can access the platform, how sessions work, how users b
 
 Included:
 
-- user identity model
-- authentication model
+- email/password authentication for V1
 - access-token and refresh-token lifecycle
-- refresh-token rotation and reuse detection
+- refresh-token rotation and token-family reuse detection
 - password hashing
 - account recovery
 - email verification
+- user and identity data model
 - organization lifecycle
 - membership lifecycle
 - invitation lifecycle
@@ -32,7 +32,7 @@ Included:
 - PostgreSQL Row-Level Security strategy
 - platform administrator cross-tenant access model
 - audit taxonomy for identity and organization operations
-- soft deletion, suspension, and deactivation rules
+- soft deletion, suspension, closure, archival, and deactivation rules
 - API contracts
 - security test matrix
 - tenant-isolation test matrix
@@ -51,6 +51,127 @@ Excluded:
 - SSO
 - OAuth2 provider login
 - enterprise identity federation
+- phone-number login
+- SMS verification
+
+## Confirmed V1 Authentication Decisions
+
+Supported V1 authentication methods:
+
+- email and password
+- email verification
+- JWT access token
+- opaque refresh token with rotation
+
+Deferred authentication methods:
+
+- OAuth2 social login
+- SSO
+- passkeys
+- magic links
+- phone-only login
+
+Password hashing:
+
+- algorithm: Argon2id
+- memory cost: 64 MiB
+- time cost: 3 iterations
+- parallelism: 1
+- salt: unique per password
+- pepper: optional server secret if operational secret management is available
+- fallback only if Argon2id cannot be deployed: bcrypt with cost factor 12, documented by ADR before implementation
+
+Access token:
+
+- JWT
+- lifetime: 15 minutes
+- signed with configured server secret
+- includes `sub`, `sessionId`, `tokenVersion`, `iat`, `exp`
+- may include active `organizationId` only as request context hint
+- must not include permission lists as source of truth
+
+Refresh token:
+
+- opaque random token, at least 256 bits of entropy
+- lifetime: 30 days absolute
+- idle timeout: 7 days since last successful rotation
+- storage strategy for browser clients: `HttpOnly`, `Secure`, `SameSite=Lax` cookie in production
+- local development may use non-secure cookie only when `NODE_ENV=development`
+- stored server-side only as HMAC-SHA-256 or Argon2id hash of token value
+- raw token is never logged or stored
+
+Token rotation:
+
+- every successful refresh rotates the refresh token
+- previous token is marked `rotated`
+- new token belongs to the same token family
+- rotation emits `RefreshTokenRotated`
+
+Token-family reuse detection:
+
+- reuse of a rotated, revoked, or expired refresh token marks the token family compromised
+- all active sessions in that token family are revoked
+- event emitted: `RefreshTokenReuseDetected`
+- audit event emitted: `auth.refresh_token_reuse_detected`
+
+Session revocation:
+
+- logout revokes the current refresh-token session
+- password reset completion revokes all active refresh-token sessions for the user
+- administrator suspension revokes all active sessions
+- compromised-session handling revokes the affected token family immediately
+
+Logout behavior:
+
+- requires authentication when possible
+- revokes current refresh-token session
+- clears refresh-token cookie
+- emits `UserLoggedOut`
+- writes `auth.logout`
+
+Password reset lifecycle:
+
+- request creates single-use expiring token
+- token lifetime: 30 minutes
+- token stored as hash only
+- completion changes password credential
+- completion revokes active refresh sessions
+- completion emits `PasswordResetCompleted`
+- both request and completion are audited
+
+Email verification lifecycle:
+
+- verification token lifetime: 24 hours
+- token stored as hash only
+- token is single-use
+- successful verification sets `email_verified_at`
+- verified email is required before organization creation or accepting organization membership
+- verification completion emits `UserEmailVerified`
+
+Account lockout and rate limiting:
+
+- login: max 5 failed attempts per normalized email and IP in 15 minutes
+- lockout: 15 minutes after 10 failed attempts in 30 minutes
+- password reset request: max 3 requests per email per hour
+- email verification resend: max 3 requests per email per hour
+- refresh endpoint: max 30 attempts per session per hour
+- rate-limit decisions must not reveal whether an email exists
+
+## User and Identity Model
+
+The model distinguishes:
+
+- user account: durable person-level account
+- authentication identity: login method and credential set
+- verified email: email address confirmed through token lifecycle
+- verified phone number: future verification attribute, not V1 login method
+- session: refresh-token-backed authenticated session
+- credential: password credential or future auth credential
+- organization membership: tenant relationship between user and organization
+
+A user account does not belong directly to a single organization.
+
+A user may belong to multiple organizations through memberships.
 
 ## Domain Aggregates and Entities
 
@@ -61,10 +182,14 @@ Aggregate root: `User`
 Entities and value objects:
 
 - `User`
+- `AuthenticationIdentity`
 - `PasswordCredential`
+- `VerifiedEmail`
+- `VerifiedPhoneNumber`
 - `EmailVerification`
 - `PasswordResetRequest`
 - `RefreshTokenSession`
+- `RefreshTokenFamily`
 - `UserSecurityEvent`
 
 Responsibilities:
@@ -111,7 +236,7 @@ Non-responsibilities:
 
 ### Authorization Aggregate
 
-Strategic model:
+Authorization model:
 
 ```text
 Role
@@ -150,10 +275,11 @@ registered
 
 Rules:
 
-- `active` requires verified email unless a future auth method explicitly changes this.
+- `active` requires verified email.
 - `suspended` users cannot authenticate.
 - `deactivated` users cannot authenticate but historical records remain.
 - `archived` users are retained for audit and compliance.
+- suspended, deactivated, and archived states revoke active sessions.
 
 ### EmailVerificationStatus
 
@@ -170,6 +296,21 @@ Rules:
 - verification tokens are single-use.
 - expired tokens cannot be reactivated.
 - new verification requests create new records.
+
+### PasswordResetStatus
+
+```text
+requested
+  -> completed
+  -> expired
+  -> revoked
+```
+
+Rules:
+
+- reset tokens are single-use.
+- completion revokes active sessions.
+- expired or revoked reset requests cannot be completed.
 
 ### RefreshTokenSessionStatus
 
@@ -191,15 +332,29 @@ Rules:
 
 ```text
 draft
+  -> onboarding
   -> active
   -> suspended
+  -> closed
   -> archived
 ```
 
+Allowed actions:
+
+| State        | Read | Update settings | Invite members | Create future campaigns | Authentication into tenant | Archive |
+| ------------ | ---- | --------------- | -------------- | ----------------------- | -------------------------- | ------- |
+| `draft`      | yes  | yes             | owner only     | no                      | owner only                 | yes     |
+| `onboarding` | yes  | yes             | yes            | no                      | yes                        | yes     |
+| `active`     | yes  | yes             | yes            | yes                     | yes                        | yes     |
+| `suspended`  | yes  | limited         | no             | no                      | limited admin only         | yes     |
+| `closed`     | yes  | no              | no             | no                      | read-only admin only       | yes     |
+| `archived`   | yes  | no              | no             | no                      | platform admin only        | no      |
+
 Rules:
 
-- suspended organizations cannot create or publish future campaigns.
-- archived organizations are read-only except for platform administrators.
+- `closed` means the tenant relationship is ended but retained.
+- `archived` is immutable read-only retention.
+- closed or archived organizations cannot create campaigns.
 
 ### MembershipStatus
 
@@ -212,8 +367,10 @@ invited
 
 Rules:
 
-- active membership is required for tenant-scoped access.
+- active membership is required for normal tenant-scoped access.
 - removed membership does not delete audit history.
+- suspended membership cannot access tenant resources.
+- every active organization must retain at least one active owner.
 
 ### InvitationStatus
 
@@ -227,82 +384,98 @@ pending
 Rules:
 
 - invitation tokens are single-use.
+- invitation lifetime: 7 days.
 - accepted invitations create or activate membership.
 - revoked invitations cannot be accepted.
+- duplicate pending invitations for the same email and organization are rejected with `INVITATION_ALREADY_PENDING`.
+- accepting an invitation as an existing user links the membership to the existing user after email match and authentication.
+- accepting an invitation as a new user requires registration and email verification before membership activation.
 
-## Authentication and Session Model
+### Ownership Transfer
 
-Initial V1 authentication:
+Ownership transfer is included in Epic 002 planning and implementation scope.
 
-- email and password
-- email verification
-- JWT access tokens
-- refresh tokens with rotation
+Rules:
 
-Access token:
-
-- short-lived
-- signed JWT
-- contains user id, active organization context where applicable, token version, issued-at, expiry
-- does not contain permission lists as source of truth
-
-Refresh token:
-
-- long-lived but rotated
-- opaque random token
-- stored only as a hash
-- linked to device/session metadata
-- reuse detection revokes token family
-
-Password hashing:
-
-- use Argon2id if dependency and deployment compatibility are accepted
-- otherwise bcrypt with documented cost factor
-- passwords are never logged
-- password hashes are never exposed
-
-Account recovery:
-
-- password reset request creates a single-use, expiring token
-- reset completion invalidates active refresh-token sessions unless policy explicitly allows otherwise
-- all recovery actions are audited
+- target user must have active membership.
+- transfer requires `organization.owner.transfer`.
+- transfer is audited.
+- the previous owner remains an organization administrator unless explicitly removed later.
+- organization cannot be left without an active owner.
 
 ## Role and Permission Matrix
 
-Initial system roles:
+V1 roles:
 
-| Role                       | Scope        | Description                               |
-| -------------------------- | ------------ | ----------------------------------------- |
-| Platform Administrator     | global       | Seneve operator with supervised access    |
-| Organization Owner         | organization | Tenant owner with full organization admin |
-| Organization Administrator | organization | Manages settings, team, and future assets |
-| Campaign Manager           | organization | Future campaign operations role           |
-| Analyst                    | organization | Future read/reporting role                |
-| Support                    | organization | Limited support and review role           |
-| Member                     | organization | Basic authenticated member                |
+| Role                         | Scope        | Description                                      |
+| ---------------------------- | ------------ | ------------------------------------------------ |
+| Platform Super Administrator | global       | Seneve operator with exceptional tenant access   |
+| Organization Owner           | organization | Tenant owner and ownership-transfer authority    |
+| Organization Administrator   | organization | Manages organization settings and team           |
+| Event Manager                | organization | Future event/campaign operations role            |
+| Finance Manager              | organization | Future payment and financial administration role |
+| Content Manager              | organization | Future candidate/content administration role     |
+| Viewer                       | organization | Read-only operational visibility                 |
+| Auditor                      | organization | Read-only audit and compliance visibility        |
 
-Initial permissions:
+V1 permissions:
 
-| Permission              | Owner | Org Admin | Campaign Manager | Analyst | Support | Member |
-| ----------------------- | ----- | --------- | ---------------- | ------- | ------- | ------ |
-| `organization.read`     | yes   | yes       | yes              | yes     | yes     | yes    |
-| `organization.update`   | yes   | yes       | no               | no      | no      | no     |
-| `organization.archive`  | yes   | no        | no               | no      | no      | no     |
-| `membership.read`       | yes   | yes       | no               | no      | yes     | no     |
-| `membership.invite`     | yes   | yes       | no               | no      | no      | no     |
-| `membership.updateRole` | yes   | yes       | no               | no      | no      | no     |
-| `membership.remove`     | yes   | yes       | no               | no      | no      | no     |
-| `audit.read`            | yes   | yes       | no               | yes     | yes     | no     |
+| Permission                    | Super Admin | Owner | Org Admin | Event Manager | Finance Manager | Content Manager | Viewer | Auditor |
+| ----------------------------- | ----------- | ----- | --------- | ------------- | --------------- | --------------- | ------ | ------- |
+| `platform.tenant.access`      | yes         | no    | no        | no            | no              | no              | no     | no      |
+| `organization.create`         | yes         | yes   | no        | no            | no              | no              | no     | no      |
+| `organization.read`           | yes         | yes   | yes       | yes           | yes             | yes             | yes    | yes     |
+| `organization.update`         | yes         | yes   | yes       | no            | no              | no              | no     | no      |
+| `organization.suspend`        | yes         | no    | no        | no            | no              | no              | no     | no      |
+| `organization.close`          | yes         | yes   | no        | no            | no              | no              | no     | no      |
+| `organization.archive`        | yes         | yes   | no        | no            | no              | no              | no     | no      |
+| `organization.owner.transfer` | yes         | yes   | no        | no            | no              | no              | no     | no      |
+| `membership.read`             | yes         | yes   | yes       | no            | no              | no              | no     | yes     |
+| `membership.invite`           | yes         | yes   | yes       | no            | no              | no              | no     | no      |
+| `membership.update_role`      | yes         | yes   | yes       | no            | no              | no              | no     | no      |
+| `membership.suspend`          | yes         | yes   | yes       | no            | no              | no              | no     | no      |
+| `membership.remove`           | yes         | yes   | yes       | no            | no              | no              | no     | no      |
+| `invitation.create`           | yes         | yes   | yes       | no            | no              | no              | no     | no      |
+| `invitation.read`             | yes         | yes   | yes       | no            | no              | no              | no     | yes     |
+| `invitation.revoke`           | yes         | yes   | yes       | no            | no              | no              | no     | no      |
+| `audit.read`                  | yes         | yes   | yes       | no            | no              | no              | no     | yes     |
+| `auth.session.revoke`         | yes         | self  | no        | no            | no              | no              | no     | no      |
 
-Platform Administrator permissions are global and must be constrained by policy, reason capture, and audit.
+Future permissions may be named but not implemented until later Epics:
 
-Future campaign permissions are named but not implemented in Epic 002 unless explicitly approved:
-
+- `event.create`
+- `event.update`
 - `campaign.create`
 - `campaign.update`
-- `campaign.publish`
-- `campaign.close`
-- `campaign.read`
+- `candidate.manage`
+- `finance.read`
+- `finance.manage`
+
+## Protected Action Requirements
+
+| Action                  | Permission                    | Tenant scope | Conditions                              | Audit event                         |
+| ----------------------- | ----------------------------- | ------------ | --------------------------------------- | ----------------------------------- |
+| Register account        | none                          | global       | email unique, valid password            | `identity.account_registered`       |
+| Login                   | none                          | global       | active verified account                 | `auth.login_succeeded/failed`       |
+| Refresh token           | session ownership             | global       | active session, token not reused        | `auth.refresh_token_rotated`        |
+| Logout                  | session ownership             | global       | active session if present               | `auth.logout`                       |
+| Request password reset  | none                          | global       | rate limit                              | `auth.password_reset_requested`     |
+| Complete password reset | reset token                   | global       | token valid, password policy            | `auth.password_reset_completed`     |
+| Verify email            | verification token            | global       | token valid                             | `identity.email_verified`           |
+| Create organization     | `organization.create`         | new tenant   | verified email, user active             | `organization.created`              |
+| Update organization     | `organization.update`         | organization | org active/onboarding                   | `organization.updated`              |
+| Suspend organization    | `organization.suspend`        | organization | platform admin path                     | `organization.suspended`            |
+| Close organization      | `organization.close`          | organization | no required active operations           | `organization.closed`               |
+| Archive organization    | `organization.archive`        | organization | closed/suspended/draft only             | `organization.archived`             |
+| Invite member           | `invitation.create`           | organization | org active/onboarding, email not active | `organization.invitation_created`   |
+| Revoke invitation       | `invitation.revoke`           | organization | invitation pending                      | `organization.invitation_revoked`   |
+| Accept invitation       | invitation token              | organization | token pending, verified email           | `organization.invitation_accepted`  |
+| Change membership role  | `membership.update_role`      | organization | cannot remove last owner                | `organization.membership_role_set`  |
+| Suspend membership      | `membership.suspend`          | organization | cannot suspend last owner               | `organization.membership_suspended` |
+| Remove membership       | `membership.remove`           | organization | cannot remove last owner                | `organization.membership_removed`   |
+| Transfer ownership      | `organization.owner.transfer` | organization | target active member                    | `organization.owner_transferred`    |
+| Read audit logs         | `audit.read`                  | organization | active membership or admin path         | optional read audit                 |
+| Platform tenant access  | `platform.tenant.access`      | organization | reason required, admin path             | `platform.cross_tenant_access`      |
 
 ## Policy Evaluation Rules
 
@@ -318,6 +491,7 @@ Authorization decision inputs:
 - role assignments
 - policy definitions
 - request context
+- correlation id
 
 Evaluation order:
 
@@ -334,27 +508,49 @@ Evaluation order:
 
 Policy examples:
 
-- organization must be active
-- membership must be active
+- organization must be `active` or `onboarding`
+- membership must be `active`
 - actor must belong to organization
 - platform admin must provide reason for cross-tenant access
-- target membership cannot remove last owner
+- target membership cannot remove last active owner
+- verified email required before organization creation
 
 ## Tenant-Isolation Design
 
-Tenant isolation uses two layers:
+Tenant isolation uses two mandatory layers:
 
-1. Application authorization.
+1. Application-level tenant scoping and authorization.
 2. PostgreSQL Row-Level Security.
 
-Tenant context propagation:
+Tenant context establishment:
 
-- API authenticates request.
-- Tenant resolver determines active `organization_id`.
+- Public auth endpoints do not use tenant context unless accepting an invitation.
+- Authenticated organization endpoints require an explicit path `organizationId` or active organization header.
+- Path `organizationId` takes precedence over active organization header.
 - Application service receives tenant context explicitly.
-- Database connection sets tenant context for RLS-protected queries.
 
-Proposed PostgreSQL setting:
+Tenant context propagation through API requests:
+
+- API guard authenticates user.
+- tenant resolver validates requested organization.
+- authorization service checks membership, policies, and conditions.
+- Prisma transaction wrapper sets tenant context before tenant-scoped queries.
+
+Tenant context propagation through jobs:
+
+- every tenant-scoped job payload must include `organizationId`
+- job producers validate authorization before enqueueing
+- workers set database tenant context inside transaction before processing
+- jobs without tenant context are rejected unless explicitly global/system scoped
+
+Prisma strategy:
+
+- all tenant-scoped data access goes through repository helpers that require tenant context
+- repository helpers run tenant-scoped work inside a transaction
+- transaction begins with `SET LOCAL app.current_organization_id = '<uuid>'`
+- platform-admin path uses a distinct helper requiring reason, permission, and audit event
+
+PostgreSQL setting:
 
 ```sql
 SET LOCAL app.current_organization_id = '<organization-uuid>';
@@ -363,25 +559,57 @@ SET LOCAL app.current_organization_id = '<organization-uuid>';
 RLS policy pattern:
 
 ```sql
-organization_id = current_setting('app.current_organization_id')::uuid
+organization_id = current_setting('app.current_organization_id', true)::uuid
 ```
 
-Platform admin access:
+Accidental unrestricted query prevention:
 
-- must use explicit elevated context
-- must require permission
-- must require reason capture
-- must create audit event
-- must not silently disable RLS for ordinary requests
+- application services cannot receive raw Prisma client for tenant-scoped operations
+- lint or architecture tests should block direct Prisma imports outside persistence adapters
+- integration tests must prove missing tenant context fails
+- RLS must be enabled and forced on tenant-scoped tables where practical
+
+Platform administrator access:
+
+- dedicated administrative execution path
+- requires `platform.tenant.access`
+- requires reason/justification
+- records correlation id
+- emits immutable audit event
+- does not silently disable RLS for ordinary requests
+
+## Platform Administration
+
+Cross-tenant administrative access is explicit, exceptional, and audited.
+
+Required fields for privileged cross-tenant operation:
+
+- platform administrator user id
+- target organization id
+- permission
+- reason
+- correlation id
+- timestamp
+- target resource
+- action performed
+
+Forbidden:
+
+- implicit global bypass in normal services
+- unreasoned cross-tenant data reads
+- unaudited support access
+- reusing organizer endpoints with hidden tenant bypass
 
 ## Database Proposal
 
 Candidate tables for Epic 002:
 
 - `users`
+- `authentication_identities`
 - `password_credentials`
 - `email_verifications`
 - `password_reset_requests`
+- `refresh_token_families`
 - `refresh_token_sessions`
 - `organizations`
 - `memberships`
@@ -404,53 +632,92 @@ Migration constraints:
 - unique normalized email
 - unique organization slug
 - unique membership per organization/user
+- unique pending invitation per organization/email
+- indexes for `organization_id`, `user_id`, `status`, `created_at`
 
 No migration should be created until this proposal is approved.
 
-## API Endpoint Proposal
+## Data Lifecycle
 
-Authentication:
+Soft-deletable records:
 
-- `POST /api/v1/auth/register`
-- `POST /api/v1/auth/login`
-- `POST /api/v1/auth/logout`
-- `POST /api/v1/auth/refresh`
-- `POST /api/v1/auth/password-reset/request`
-- `POST /api/v1/auth/password-reset/confirm`
-- `POST /api/v1/auth/email/verify`
-- `POST /api/v1/auth/email/resend`
+- organizations before archival only through status transition and `deleted_at` where appropriate
+- invitations may be expired or revoked, not physically deleted
+- organization settings may be superseded by update history
 
-Current user:
+Deactivation-only records:
 
-- `GET /api/v1/me`
-- `GET /api/v1/me/organizations`
-- `POST /api/v1/me/active-organization`
+- users
+- memberships
+- roles
+- policies
 
-Organizations:
+Immutable or append-only records:
 
-- `POST /api/v1/organizations`
-- `GET /api/v1/organizations`
-- `GET /api/v1/organizations/{organizationId}`
-- `PATCH /api/v1/organizations/{organizationId}`
-- `POST /api/v1/organizations/{organizationId}/archive`
+- audit logs
+- security events
+- password reset request history
+- email verification history
+- refresh-token session history after terminal state
 
-Memberships:
+Identity retention after account closure:
 
-- `GET /api/v1/organizations/{organizationId}/members`
-- `PATCH /api/v1/organizations/{organizationId}/members/{membershipId}`
-- `DELETE /api/v1/organizations/{organizationId}/members/{membershipId}`
+- retain user id, normalized email hash or redacted email, status, and audit references
+- remove or redact optional profile fields where legally required
+- retain immutable audit events with sensitive metadata redacted
 
-Invitations:
+Membership audit retention:
 
-- `POST /api/v1/organizations/{organizationId}/invitations`
-- `GET /api/v1/organizations/{organizationId}/invitations`
-- `POST /api/v1/organizations/{organizationId}/invitations/{invitationId}/revoke`
-- `POST /api/v1/invitations/accept`
+- memberships are not physically deleted
+- removal uses `removed` status
+- role changes are audited
 
-Authorization metadata:
+Active session invalidation:
 
-- `GET /api/v1/organizations/{organizationId}/roles`
-- `GET /api/v1/organizations/{organizationId}/permissions`
+- user suspension, deactivation, password reset completion, and compromised-session handling revoke active sessions
+- organization suspension does not revoke global user sessions but blocks tenant access
+
+Personal-data deletion requests:
+
+- redact non-essential personal fields where allowed
+- preserve immutable audit records required for integrity and compliance
+- store deletion request audit event
+- never delete audit logs directly
+
+## API Contracts
+
+All endpoints use `/api/v1`, JSON, validation, standard response envelope, documented domain error codes, and OpenAPI.
+
+Representative V1 contracts:
+
+| Endpoint                                                                 | Auth | Permission                    | Tenant resolution | Success                            | Errors                                                                                  | Idempotency       | Audit                               | Rate limit   |
+| ------------------------------------------------------------------------ | ---- | ----------------------------- | ----------------- | ---------------------------------- | --------------------------------------------------------------------------------------- | ----------------- | ----------------------------------- | ------------ |
+| `POST /auth/register`                                                    | no   | none                          | none              | user registered, verification sent | `EMAIL_ALREADY_EXISTS`, `WEAK_PASSWORD`, `VALIDATION_FAILED`                            | email unique      | `identity.account_registered`       | per IP/email |
+| `POST /auth/login`                                                       | no   | none                          | none              | access token, refresh cookie       | `INVALID_CREDENTIALS`, `EMAIL_NOT_VERIFIED`, `ACCOUNT_LOCKED`, `USER_SUSPENDED`         | no                | login success/failure               | strict       |
+| `POST /auth/logout`                                                      | yes  | session ownership             | none              | session revoked                    | `SESSION_NOT_FOUND`                                                                     | yes               | `auth.logout`                       | normal       |
+| `POST /auth/refresh`                                                     | no   | refresh token                 | none              | new access token, refresh cookie   | `REFRESH_TOKEN_EXPIRED`, `REFRESH_TOKEN_REUSED`, `SESSION_REVOKED`                      | token rotation    | `auth.refresh_token_rotated/reused` | strict       |
+| `POST /auth/password-reset/request`                                      | no   | none                          | none              | accepted                           | `RATE_LIMITED`, `VALIDATION_FAILED`                                                     | email/time window | `auth.password_reset_requested`     | strict       |
+| `POST /auth/password-reset/confirm`                                      | no   | reset token                   | none              | password changed                   | `RESET_TOKEN_INVALID`, `RESET_TOKEN_EXPIRED`, `WEAK_PASSWORD`                           | token single-use  | `auth.password_reset_completed`     | strict       |
+| `POST /auth/email/verify`                                                | no   | verification token            | none              | email verified                     | `VERIFICATION_TOKEN_INVALID`, `VERIFICATION_TOKEN_EXPIRED`                              | token single-use  | `identity.email_verified`           | strict       |
+| `POST /auth/email/resend`                                                | no   | none                          | none              | accepted                           | `RATE_LIMITED`, `EMAIL_ALREADY_VERIFIED`                                                | email/time window | `identity.email_verification_sent`  | strict       |
+| `GET /me`                                                                | yes  | self                          | none              | current user                       | `UNAUTHENTICATED`                                                                       | no                | none                                | normal       |
+| `GET /me/organizations`                                                  | yes  | self                          | memberships       | organization list                  | `UNAUTHENTICATED`                                                                       | no                | none                                | normal       |
+| `POST /organizations`                                                    | yes  | `organization.create`         | new tenant        | organization created               | `EMAIL_NOT_VERIFIED`, `ORGANIZATION_SLUG_TAKEN`, `VALIDATION_FAILED`                    | slug unique       | `organization.created`              | normal       |
+| `GET /organizations/{organizationId}`                                    | yes  | `organization.read`           | path              | organization                       | `ORG_NOT_FOUND`, `FORBIDDEN`, `TENANT_SCOPE_REQUIRED`                                   | no                | optional read audit                 | normal       |
+| `PATCH /organizations/{organizationId}`                                  | yes  | `organization.update`         | path              | organization updated               | `ORG_NOT_ACTIVE`, `FORBIDDEN`, `VALIDATION_FAILED`                                      | no                | `organization.updated`              | normal       |
+| `POST /organizations/{organizationId}/close`                             | yes  | `organization.close`          | path              | organization closed                | `ORG_HAS_BLOCKING_OPERATIONS`, `FORBIDDEN`                                              | yes               | `organization.closed`               | normal       |
+| `POST /organizations/{organizationId}/archive`                           | yes  | `organization.archive`        | path              | organization archived              | `ORG_STATE_INVALID`, `FORBIDDEN`                                                        | yes               | `organization.archived`             | normal       |
+| `POST /organizations/{organizationId}/owner-transfer`                    | yes  | `organization.owner.transfer` | path              | ownership transferred              | `TARGET_NOT_ACTIVE_MEMBER`, `LAST_OWNER_INVALID`, `FORBIDDEN`                           | no                | `organization.owner_transferred`    | strict       |
+| `GET /organizations/{organizationId}/members`                            | yes  | `membership.read`             | path              | member list                        | `FORBIDDEN`, `TENANT_SCOPE_REQUIRED`                                                    | no                | optional read audit                 | normal       |
+| `PATCH /organizations/{organizationId}/members/{membershipId}`           | yes  | `membership.update_role`      | path              | membership updated                 | `LAST_OWNER_INVALID`, `ROLE_INVALID`, `FORBIDDEN`                                       | no                | `organization.membership_role_set`  | normal       |
+| `POST /organizations/{organizationId}/members/{membershipId}/suspend`    | yes  | `membership.suspend`          | path              | membership suspended               | `LAST_OWNER_INVALID`, `FORBIDDEN`                                                       | yes               | `organization.membership_suspended` | normal       |
+| `DELETE /organizations/{organizationId}/members/{membershipId}`          | yes  | `membership.remove`           | path              | membership removed                 | `LAST_OWNER_INVALID`, `FORBIDDEN`                                                       | yes               | `organization.membership_removed`   | normal       |
+| `POST /organizations/{organizationId}/invitations`                       | yes  | `invitation.create`           | path              | invitation created                 | `INVITATION_ALREADY_PENDING`, `MEMBERSHIP_ALREADY_EXISTS`, `FORBIDDEN`                  | email/org unique  | `organization.invitation_created`   | normal       |
+| `GET /organizations/{organizationId}/invitations`                        | yes  | `invitation.read`             | path              | invitation list                    | `FORBIDDEN`                                                                             | no                | optional read audit                 | normal       |
+| `POST /organizations/{organizationId}/invitations/{invitationId}/revoke` | yes  | `invitation.revoke`           | path              | invitation revoked                 | `INVITATION_NOT_PENDING`, `FORBIDDEN`                                                   | yes               | `organization.invitation_revoked`   | normal       |
+| `POST /invitations/accept`                                               | yes  | invitation token              | token             | membership activated               | `INVITATION_EXPIRED`, `INVITATION_REVOKED`, `EMAIL_NOT_VERIFIED`, `INVITATION_REPLAYED` | token single-use  | `organization.invitation_accepted`  | strict       |
+| `GET /organizations/{organizationId}/roles`                              | yes  | `membership.read`             | path              | role list                          | `FORBIDDEN`                                                                             | no                | none                                | normal       |
+| `GET /organizations/{organizationId}/permissions`                        | yes  | `membership.read`             | path              | permission list                    | `FORBIDDEN`                                                                             | no                | none                                | normal       |
 
 ## Domain Events
 
@@ -464,6 +731,8 @@ Identity events:
 - `UserLoggedOut`
 - `RefreshTokenRotated`
 - `RefreshTokenReuseDetected`
+- `SessionRevoked`
+- `PasswordChanged`
 - `PasswordResetRequested`
 - `PasswordResetCompleted`
 - `UserSuspended`
@@ -474,64 +743,70 @@ Organization events:
 - `OrganizationCreated`
 - `OrganizationUpdated`
 - `OrganizationSuspended`
+- `OrganizationClosed`
 - `OrganizationArchived`
+- `OrganizationOwnerTransferred`
 - `MembershipInvited`
 - `MembershipActivated`
+- `MembershipCreated`
 - `MembershipRoleChanged`
 - `MembershipSuspended`
 - `MembershipRemoved`
 - `InvitationAccepted`
 - `InvitationRevoked`
+- `InvitationExpired`
 
 Authorization events:
 
 - `AuthorizationDenied`
 - `PlatformAdminTenantAccessed`
 
-## Audit Events
+## Audit Taxonomy
 
-Mandatory audit events:
+Canonical audit events:
 
-- registration
-- login success
-- login failure
-- logout
-- refresh token rotation
-- refresh token reuse detection
-- password reset request
-- password reset completion
-- email verification request
-- email verification completion
-- organization creation
-- organization update
-- organization suspension
-- organization archival
-- invitation creation
-- invitation acceptance
-- invitation revocation
-- membership role change
-- membership suspension
-- membership removal
-- authorization denial for sensitive actions
-- platform admin cross-tenant access
+| Event name                               | Actor             | Target             | Tenant scope        | Metadata                                 | Retention |
+| ---------------------------------------- | ----------------- | ------------------ | ------------------- | ---------------------------------------- | --------- |
+| `identity.account_registered`            | user/system       | user               | global              | normalized email hash, registration path | immutable |
+| `auth.login_succeeded`                   | user              | session            | global              | session id, IP hash, user agent hash     | immutable |
+| `auth.login_failed`                      | unknown/user      | user/email         | global              | email hash, reason, IP hash              | immutable |
+| `auth.logout`                            | user              | session            | global              | session id                               | immutable |
+| `auth.session_revoked`                   | user/admin/system | session            | global              | reason                                   | immutable |
+| `auth.password_changed`                  | user              | user               | global              | session revocation count                 | immutable |
+| `auth.password_reset_requested`          | unknown/user      | user/email         | global              | email hash, request id                   | immutable |
+| `auth.password_reset_completed`          | user              | user               | global              | request id, sessions revoked             | immutable |
+| `identity.email_verified`                | user              | email verification | global              | verification id                          | immutable |
+| `organization.created`                   | user              | organization       | organization        | organization id, slug                    | immutable |
+| `organization.updated`                   | user              | organization       | organization        | changed fields                           | immutable |
+| `organization.suspended`                 | platform admin    | organization       | organization        | reason                                   | immutable |
+| `organization.closed`                    | owner/admin       | organization       | organization        | reason                                   | immutable |
+| `organization.archived`                  | owner/admin       | organization       | organization        | reason                                   | immutable |
+| `organization.invitation_created`        | member/admin      | invitation         | organization        | invited email hash, role keys            | immutable |
+| `organization.invitation_revoked`        | member/admin      | invitation         | organization        | reason                                   | immutable |
+| `organization.invitation_accepted`       | invited user      | membership         | organization        | invitation id                            | immutable |
+| `organization.membership_created`        | system/member     | membership         | organization        | source                                   | immutable |
+| `organization.membership_role_changed`   | member/admin      | membership         | organization        | old roles, new roles                     | immutable |
+| `organization.membership_suspended`      | member/admin      | membership         | organization        | reason                                   | immutable |
+| `organization.membership_removed`        | member/admin      | membership         | organization        | reason                                   | immutable |
+| `organization.owner_transferred`         | owner/admin       | organization       | organization        | previous owner id, new owner id          | immutable |
+| `platform.cross_tenant_action_performed` | platform admin    | target resource    | organization/global | permission, reason, correlation id       | immutable |
 
-Audit payloads must redact:
+Audit metadata rules:
 
-- passwords
-- raw tokens
-- authorization headers
-- reset tokens
-- verification tokens
-- refresh tokens
+- raw tokens are never stored
+- passwords are never stored
+- authorization headers are never stored
+- IP addresses and user agents should be hashed or minimized
+- audit logs are immutable and never physically deleted
 
 ## Security Controls
 
 - rate limiting for login, refresh, password reset, and verification endpoints
-- password hashing with approved algorithm
+- Argon2id password hashing
 - token hashing for refresh, reset, and verification tokens
 - refresh-token rotation
 - refresh-token reuse detection
-- account lockout or throttling policy
+- account lockout and throttling
 - constant-time token comparison where applicable
 - server-side authorization before business logic
 - RLS-backed tenant isolation
@@ -539,23 +814,42 @@ Audit payloads must redact:
 - input validation
 - normalized email handling
 - secret-free logs
-- secure cookie strategy if refresh tokens are cookie-bound
+- `HttpOnly` refresh-token cookie for browser clients
+- no server-only secrets exposed to Next.js client bundles
 
 ## Test Matrix
 
 Authentication tests:
 
+- invalid credentials
+- brute-force protection
 - registration succeeds with valid input
 - registration rejects duplicate email
 - login succeeds with verified active user
 - login rejects wrong password
 - suspended user cannot login
-- access token expires according to configuration
-- refresh rotates token
-- reused refresh token revokes token family
-- logout revokes session
+- expired access token
+- expired refresh token
+- refresh-token replay
+- revoked session
+- logout revokes current session
 - password reset token is single-use
 - email verification token is single-use
+- unverified email restrictions
+
+Invitation and membership tests:
+
+- invitation replay
+- expired invitation
+- revoked invitation
+- duplicate invitation
+- existing user accepts invitation
+- new user accepts invitation after registration and verification
+- duplicate membership rejected
+- unauthorized role assignment
+- last-owner removal prevention
+- ownership transfer
+- suspended membership cannot access tenant
 
 Authorization tests:
 
@@ -564,20 +858,25 @@ Authorization tests:
 - deny policy overrides allow policy
 - inactive organization blocks protected actions
 - inactive membership blocks tenant access
-- last owner cannot be removed
+- platform-admin access without required authorization denied
 
 Tenant-isolation tests:
 
-- user in organization A cannot read organization B
-- user in organization A cannot mutate organization B
+- cross-organization reads blocked
+- cross-organization writes blocked
 - RLS blocks direct cross-tenant query
 - application authorization blocks cross-tenant request before service execution
+- missing tenant scope fails
+- background-job tenant leakage is detected
 - platform admin access requires explicit elevated context and audit reason
 
 Audit tests:
 
+- audit generated for every critical action
 - login success creates audit event
 - login failure creates security event
+- session revocation creates audit event
+- password reset creates audit events
 - membership role change creates audit event
 - platform admin cross-tenant access creates audit event
 - audit payload redacts secrets
@@ -590,13 +889,14 @@ API tests:
 - forbidden requests return `403`
 - conflict cases return `409`
 - semantic validation failures return `422`
+- rate-limited requests return `429`
 
 ## Implementation Sequence
 
 After approval:
 
 1. Update `DATABASE_SCHEMA.md` with approved Epic 002 tables.
-2. Add ADR if any security/session decision differs from existing architecture.
+2. Add ADR if any security/session decision changes from this plan.
 3. Define domain types and state machines.
 4. Create Prisma migration with RLS policies.
 5. Implement password and token hashing utilities.
@@ -617,13 +917,14 @@ After approval:
 
 Migration planning rules:
 
-- one migration for approved identity/organization foundation
+- one migration for approved identity/organization foundation unless size requires a documented split
 - include RLS enablement and policies
 - include indexes and unique constraints
 - avoid nullable fields unless lifecycle requires them
 - store token hashes, not raw tokens
 - no destructive changes
 - rollback guidance required
+- migration tests required
 
 No migration will be generated until this planning document is approved.
 
@@ -636,6 +937,7 @@ Epic 002 can be considered complete only when:
 - organizations can be created and managed according to permissions
 - invitations can be created, accepted, expired, and revoked
 - membership lifecycle is implemented
+- ownership transfer is implemented
 - role/permission/policy/condition evaluation is enforced
 - tenant context is propagated consistently
 - PostgreSQL RLS is active on tenant-scoped tables
@@ -644,20 +946,11 @@ Epic 002 can be considered complete only when:
 - security and tenant-isolation tests pass
 - documentation and release notes are updated
 
-## Unresolved Decisions
+## Remaining External Decisions
 
-These require approval before implementation:
+The following operational selections remain external but do not change the core design:
 
-1. Password hashing algorithm: Argon2id vs bcrypt.
-2. Refresh-token transport: HTTP-only secure cookie vs response body for first V1.
-3. Access token lifetime.
-4. Refresh token absolute lifetime.
-5. Refresh token idle timeout.
-6. Account lockout or throttling thresholds.
-7. Email provider for verification and recovery.
-8. Whether email verification is mandatory before first organization creation.
-9. Whether a user can create multiple organizations in V1.
-10. Platform administrator bootstrap process.
-11. Whether organization owner transfer is included in Epic 002.
-12. Whether audit logs are in the Epic 002 migration or foundation audit is deferred.
-13. Whether RLS bypass is permitted for background workers and under what controlled context.
+1. Email provider for verification and recovery delivery.
+2. Platform Super Administrator bootstrap method for the first production environment.
+3. Final production secret-management provider.
+4. Legal retention period for identity audit logs by operating jurisdiction.

@@ -11,6 +11,9 @@
 - Added local development documentation.
 - Updated Epic 001 status with provisional acceptance, final local validation, Docker validation gap, GitHub publication status, runtime versions, ports, environment variables, startup commands, and PR requirements.
 - Added Epic 002 Identity and Organizations planning document.
+- Refined Epic 002 planning with explicit authentication, authorization, tenant-isolation, audit, data-lifecycle, API, and security-test decisions.
+- Added Epic 002 design-review report.
+- Added Epic 001 Pull Request description draft.
 
 ### Foundation
 
