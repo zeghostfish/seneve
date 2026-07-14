@@ -7,7 +7,200 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Epic 001 intentionally does not define business models.
-// Future business tables must be documented in docs/database/DATABASE_SCHEMA.md
-// before migrations are created.
+enum IdentityStatus {
+  PENDING_EMAIL_VERIFICATION
+  ACTIVE
+  SUSPENDED
+  CLOSED
+}
 
+enum CredentialType {
+  PASSWORD
+}
+
+enum CredentialStatus {
+  ACTIVE
+  REVOKED
+}
+
+enum SessionStatus {
+  ACTIVE
+  REVOKED
+  EXPIRED
+}
+
+enum RefreshTokenStatus {
+  ACTIVE
+  ROTATED
+  REVOKED
+  EXPIRED
+}
+
+enum OneTimeTokenStatus {
+  PENDING
+  CONSUMED
+  REVOKED
+  EXPIRED
+}
+
+enum IdentitySecurityEventType {
+  IDENTITY_REGISTERED
+  EMAIL_VERIFIED
+  PASSWORD_CHANGED
+  PASSWORD_RESET_REQUESTED
+  PASSWORD_RESET_COMPLETED
+  LOGIN_SUCCEEDED
+  LOGIN_FAILED
+  SESSION_CREATED
+  SESSION_REVOKED
+  REFRESH_TOKEN_ROTATED
+  REFRESH_TOKEN_REUSE_DETECTED
+  IDENTITY_SUSPENDED
+}
+
+model Identity {
+  id                      String                   @id @default(uuid()) @db.Uuid
+  status                  IdentityStatus
+  normalizedLoginEmail    String                   @map("normalized_login_email")
+  version                 Int                      @default(1)
+  createdAt               DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt               DateTime                 @updatedAt @map("updated_at") @db.Timestamptz(6)
+  suspendedAt             DateTime?                @map("suspended_at") @db.Timestamptz(6)
+  closedAt                DateTime?                @map("closed_at") @db.Timestamptz(6)
+  user                    User?
+  emails                  IdentityEmail[]
+  credentials             Credential[]
+  sessions                Session[]
+  emailVerificationTokens EmailVerificationToken[]
+  passwordResetTokens     PasswordResetToken[]
+  securityEvents          IdentitySecurityEvent[]
+
+  @@index([status], map: "idx_identities_status")
+  @@index([normalizedLoginEmail], map: "idx_identities_normalized_login_email")
+  @@map("identities")
+}
+
+model User {
+  id          String   @id @default(uuid()) @db.Uuid
+  identityId  String   @unique(map: "uq_users_identity_id") @map("identity_id") @db.Uuid
+  displayName String   @map("display_name")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  identity    Identity @relation(fields: [identityId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@map("users")
+}
+
+model IdentityEmail {
+  id              String    @id @default(uuid()) @db.Uuid
+  identityId      String    @map("identity_id") @db.Uuid
+  email           String
+  normalizedEmail String    @map("normalized_email")
+  isPrimary       Boolean   @default(false) @map("is_primary")
+  verifiedAt      DateTime? @map("verified_at") @db.Timestamptz(6)
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  identity        Identity  @relation(fields: [identityId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([identityId], map: "idx_identity_emails_identity_id")
+  @@index([normalizedEmail], map: "idx_identity_emails_normalized_email")
+  @@map("identity_emails")
+}
+
+model Credential {
+  id         String           @id @default(uuid()) @db.Uuid
+  identityId String           @map("identity_id") @db.Uuid
+  type       CredentialType
+  secretHash String           @map("secret_hash")
+  status     CredentialStatus
+  version    Int              @default(1)
+  createdAt  DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+  revokedAt  DateTime?        @map("revoked_at") @db.Timestamptz(6)
+  identity   Identity         @relation(fields: [identityId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([identityId, type, status], map: "idx_credentials_identity_type_status")
+  @@map("credentials")
+}
+
+model Session {
+  id            String         @id @default(uuid()) @db.Uuid
+  identityId    String         @map("identity_id") @db.Uuid
+  status        SessionStatus
+  version       Int            @default(1)
+  createdAt     DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+  expiresAt     DateTime       @map("expires_at") @db.Timestamptz(6)
+  revokedAt     DateTime?      @map("revoked_at") @db.Timestamptz(6)
+  identity      Identity       @relation(fields: [identityId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  refreshTokens RefreshToken[]
+
+  @@index([identityId, status], map: "idx_sessions_identity_status")
+  @@index([expiresAt], map: "idx_sessions_expires_at")
+  @@map("sessions")
+}
+
+model RefreshToken {
+  id         String             @id @default(uuid()) @db.Uuid
+  sessionId  String             @map("session_id") @db.Uuid
+  familyId   String             @map("family_id") @db.Uuid
+  tokenHash  String             @unique(map: "uq_refresh_tokens_token_hash") @map("token_hash")
+  status     RefreshTokenStatus
+  version    Int                @default(1)
+  issuedAt   DateTime           @default(now()) @map("issued_at") @db.Timestamptz(6)
+  expiresAt  DateTime           @map("expires_at") @db.Timestamptz(6)
+  consumedAt DateTime?          @map("consumed_at") @db.Timestamptz(6)
+  revokedAt  DateTime?          @map("revoked_at") @db.Timestamptz(6)
+  session    Session            @relation(fields: [sessionId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([sessionId, status], map: "idx_refresh_tokens_session_status")
+  @@index([familyId, status], map: "idx_refresh_tokens_family_status")
+  @@index([expiresAt], map: "idx_refresh_tokens_expires_at")
+  @@map("refresh_tokens")
+}
+
+model EmailVerificationToken {
+  id         String             @id @default(uuid()) @db.Uuid
+  identityId String             @map("identity_id") @db.Uuid
+  tokenId    String             @unique(map: "uq_email_verification_tokens_token_id") @map("token_id") @db.Uuid
+  tokenHash  String             @unique(map: "uq_email_verification_tokens_token_hash") @map("token_hash")
+  status     OneTimeTokenStatus
+  createdAt  DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  expiresAt  DateTime           @map("expires_at") @db.Timestamptz(6)
+  consumedAt DateTime?          @map("consumed_at") @db.Timestamptz(6)
+  identity   Identity           @relation(fields: [identityId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([identityId, status], map: "idx_email_verification_tokens_identity_status")
+  @@index([expiresAt], map: "idx_email_verification_tokens_expires_at")
+  @@map("email_verification_tokens")
+}
+
+model PasswordResetToken {
+  id         String             @id @default(uuid()) @db.Uuid
+  identityId String             @map("identity_id") @db.Uuid
+  tokenId    String             @unique(map: "uq_password_reset_tokens_token_id") @map("token_id") @db.Uuid
+  tokenHash  String             @unique(map: "uq_password_reset_tokens_token_hash") @map("token_hash")
+  status     OneTimeTokenStatus
+  createdAt  DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  expiresAt  DateTime           @map("expires_at") @db.Timestamptz(6)
+  consumedAt DateTime?          @map("consumed_at") @db.Timestamptz(6)
+  identity   Identity           @relation(fields: [identityId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([identityId, status], map: "idx_password_reset_tokens_identity_status")
+  @@index([expiresAt], map: "idx_password_reset_tokens_expires_at")
+  @@map("password_reset_tokens")
+}
+
+model IdentitySecurityEvent {
+  id            String                    @id @default(uuid()) @db.Uuid
+  identityId    String?                   @map("identity_id") @db.Uuid
+  eventType     IdentitySecurityEventType @map("event_type")
+  occurredAt    DateTime                  @default(now()) @map("occurred_at") @db.Timestamptz(6)
+  correlationId String                    @map("correlation_id")
+  metadata      Json?
+  identity      Identity?                 @relation(fields: [identityId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([identityId, occurredAt], map: "idx_identity_security_events_identity_occurred_at")
+  @@index([eventType, occurredAt], map: "idx_identity_security_events_type_occurred_at")
+  @@map("identity_security_events")
+}
