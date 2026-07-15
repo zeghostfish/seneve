@@ -323,6 +323,10 @@ class InMemoryIdentityRepository implements IdentityRepository {
     return true;
   }
 
+  async replacePasswordCredential(): Promise<boolean> {
+    return true;
+  }
+
   async suspendIdentityAndRevokeSessions(): Promise<boolean> {
     return true;
   }
@@ -366,6 +370,18 @@ class InMemoryTokenRepository implements IdentityTokenRepository {
   }
 
   async createPasswordResetToken(): Promise<void> {}
+
+  async findLatestPasswordResetToken(): Promise<PersistedOneTimeTokenReadModel | null> {
+    return null;
+  }
+
+  async countPasswordResetTokensCreatedSince(): Promise<number> {
+    return 0;
+  }
+
+  async revokePendingPasswordResetTokens(): Promise<number> {
+    return 0;
+  }
 
   async consumePasswordResetToken(): Promise<OneTimeTokenConsumptionResult> {
     return { outcome: 'NOT_FOUND' };
@@ -423,6 +439,9 @@ class EmptySessionRepository implements IdentitySessionRepository {
   }
   async revokeAllSessionsForIdentity() {
     return 0;
+  }
+  async revokeAllSessionsAndRefreshTokensForIdentity() {
+    return { sessionsRevoked: 0, refreshTokensRevoked: 0 };
   }
   async revokeAllSessionsExcept() {
     return 0;

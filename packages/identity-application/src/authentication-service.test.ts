@@ -403,6 +403,10 @@ class InMemoryIdentityRepository implements IdentityRepository {
     return true;
   }
 
+  async replacePasswordCredential(): Promise<boolean> {
+    return true;
+  }
+
   async suspendIdentityAndRevokeSessions(identityId: string): Promise<boolean> {
     this.suspendedIdentities.push(identityId);
     return true;
@@ -447,6 +451,10 @@ class InMemorySessionRepository implements IdentitySessionRepository {
   async revokeAllSessionsForIdentity(identityId: string): Promise<number> {
     this.revokedIdentities.push(identityId);
     return 1;
+  }
+
+  async revokeAllSessionsAndRefreshTokensForIdentity() {
+    return { sessionsRevoked: 0, refreshTokensRevoked: 0 };
   }
 
   async touchSession(): Promise<boolean> {
@@ -535,6 +543,18 @@ class InMemoryTokenRepository implements IdentityTokenRepository {
     input: Parameters<IdentityTokenRepository['createPasswordResetToken']>[0],
   ): Promise<void> {
     this.passwordResetTokens.push(input);
+  }
+
+  async findLatestPasswordResetToken(): Promise<PersistedOneTimeTokenReadModel | null> {
+    return null;
+  }
+
+  async countPasswordResetTokensCreatedSince(): Promise<number> {
+    return 0;
+  }
+
+  async revokePendingPasswordResetTokens(): Promise<number> {
+    return 0;
   }
 
   async consumePasswordResetToken(

@@ -159,6 +159,10 @@ class InMemorySessionRepository implements IdentitySessionRepository {
     return 0;
   }
 
+  async revokeAllSessionsAndRefreshTokensForIdentity() {
+    return { sessionsRevoked: 0, refreshTokensRevoked: 0 };
+  }
+
   async revokeAllSessionsExcept(
     identityId: string,
     currentSessionId: string,
