@@ -4,7 +4,9 @@
 
 Design approved. Local implementation authorized by project-owner waiver.
 
-Implementation must follow the approved phase order. Phase 12 is implemented and remains limited to Generic Audit Persistence with no controllers, REST API or frontend integration.
+Implementation must follow the approved phase order. Phase 13 is implemented locally and remains
+limited to the HTTP Authentication API. Organization APIs, frontend integration and production
+PostgreSQL/Redis validation remain pending.
 
 ## Objective
 
@@ -415,6 +417,36 @@ Not implemented in Phase 12:
 - SIEM integration.
 - external log shipping.
 - Campaign, Voting, Financial or Billing audit events.
+
+### Phase 13 - HTTP Authentication API
+
+Status: implemented locally, PostgreSQL and Redis runtime validation pending.
+
+Implemented locally:
+
+- NestJS authentication transport module.
+- registration, login, refresh, logout and logout-all routes.
+- email-verification request, resend and completion routes.
+- password-reset request and completion routes.
+- active-session listing, selected-session revocation and revoke-all-except-current routes.
+- DTO validation for authentication inputs.
+- refresh-token cookie transport.
+- access-token guard with live session and identity validation.
+- CSRF origin guard for state-changing requests.
+- Redis-backed rate-limiter boundary with in-memory test fallback.
+- authentication response redaction and centralized public error mapping.
+- OpenAPI-discoverable DTOs and controller metadata.
+- Supertest coverage for key authentication transport behavior.
+
+Not implemented in Phase 13:
+
+- Organization HTTP APIs.
+- frontend login or recovery pages.
+- external email-provider delivery.
+- MFA, passkeys, SSO or social login.
+- authenticated password change.
+- audit HTTP endpoints.
+- Playwright end-to-end tests.
 
 ## Confirmed V1 Authentication Decisions
 

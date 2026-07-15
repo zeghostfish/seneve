@@ -1,5 +1,8 @@
 # Audit Event Catalog
 
+Phase 13 HTTP handlers pass trusted request context to Identity workflows. Controllers must not
+construct arbitrary audit records directly.
+
 ## Status
 
 Implemented in Epic 002 Phase 12.

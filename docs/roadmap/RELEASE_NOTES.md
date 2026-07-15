@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+### Epic 002 Phase 13 - HTTP Authentication API
+
+- Added the NestJS authentication HTTP module with registration, login, refresh, logout,
+  email-verification, password-reset and session-management routes.
+- Added secure refresh-cookie transport and short-lived access-token response mapping.
+- Added DTO validation, CSRF origin checks, credentialed CORS configuration, Helmet headers and
+  `Cache-Control: no-store` for authentication responses.
+- Added access-token verification with live session and identity validation.
+- Added Redis-backed authentication rate-limiter boundary with an in-memory test fallback.
+- Added Supertest coverage for token redaction, cookie issuance, refresh transport, password-reset
+  anti-enumeration response, session ownership checks and CSRF origin rejection.
+- Added Authentication API and HTTP security documentation.
+- PostgreSQL, Redis and RLS-backed HTTP integration validation remains pending until a complete
+  runtime environment is available.
+
 ### Documentation
 
 - Added architecture documentation for Campaign-centric Modular Monolith.
@@ -58,5 +73,9 @@
 - Official GitHub remote has not been provided or confirmed.
 - GitHub Actions has not run remotely.
 - Docker image build and Docker Compose startup validation have not run locally because Docker was unavailable.
-- Epic 002 Phase 12 has no controllers, public API, cookies, OpenAPI authentication routes, browser fingerprinting, email-provider delivery, invitation delivery, notification outbox, Redis-backed rate limiting, authenticated password change, authorization persistence, custom role persistence, production role provisioning automation, audit HTTP endpoints, audit UI, export files, retention deletion jobs, SIEM integration, external log shipping, or frontend integration.
+- Epic 002 Phase 13 has no Organization HTTP APIs, frontend login pages, browser fingerprinting,
+  external email-provider delivery, invitation delivery, notification outbox, authenticated password
+  change, authorization persistence, custom role persistence, production role provisioning
+  automation, audit HTTP endpoints, audit UI, export files, retention deletion jobs, SIEM
+  integration, external log shipping, or frontend integration.
 - PostgreSQL repository integration tests are present but skipped locally unless `RUN_POSTGRES_INTEGRATION=true` and `DATABASE_URL` point to a migrated PostgreSQL database.
