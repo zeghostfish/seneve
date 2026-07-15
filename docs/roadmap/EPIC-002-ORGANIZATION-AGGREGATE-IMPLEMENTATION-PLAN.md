@@ -2,9 +2,9 @@
 
 ## Status
 
-Phase 7 implementation complete under the approved Local Implementation Waiver.
+Phase 9 implementation complete under the approved Local Implementation Waiver.
 
-Phase 7 is domain-only. It introduces no Prisma models, migrations, repositories, tenant RLS, Permission Evaluation Service, NestJS modules, controllers, invitation delivery, or HTTP API.
+Phase 7 established the domain model. Phase 8 established authorization evaluation. Phase 9 adds Organization persistence only. It introduces no tenant RLS, NestJS modules, controllers, invitation delivery, HTTP API, custom roles, subscriptions, billing, API keys or campaign functionality.
 
 ## Aggregate Boundary
 
@@ -173,12 +173,67 @@ Implemented error codes:
 
 ## Future Transaction Boundaries
 
-Future persistence must preserve these operations atomically:
+Implemented persistence preserves these operations atomically:
 
 - organization creation with initial owner membership.
 - invitation acceptance with membership creation and invitation consumption.
 - ownership transfer with target owner assignment and previous owner role update.
 - last-owner checks and membership mutation.
+
+## Phase 9 Persistence
+
+Implemented Prisma entities:
+
+- `Organization`
+- `OrganizationMembership`
+- `OrganizationInvitation`
+
+Implemented enums:
+
+- `OrganizationStatus`
+- `OrganizationMembershipStatus`
+- `OrganizationRole`
+- `OrganizationInvitationStatus`
+
+The persistence model references Identity by `identity_id` only. It does not import or persist Identity profile, email, credential or session details inside Organization records.
+
+Repository contracts live in `@seneve/domain-organization`:
+
+- `OrganizationRepository`
+- `OrganizationMembershipRepository`
+- `OrganizationInvitationRepository`
+- `OrganizationUnitOfWork`
+
+Prisma implementations live in `@seneve/organization-persistence`:
+
+- `PrismaOrganizationRepository`
+- `PrismaOrganizationMembershipRepository`
+- `PrismaOrganizationInvitationRepository`
+- `PrismaOrganizationUnitOfWork`
+
+Mapping rules:
+
+- generated Prisma models are internal to `@seneve/organization-persistence`.
+- repositories return explicit organization persistence read models, not Prisma records.
+- raw invitation tokens are not represented in persistence contracts; only `token_id` and `token_hash` are persisted.
+- organization roles are persisted as assignments only; Permission Evaluation remains the authorization source.
+
+Concurrency protections:
+
+- organization status updates use optimistic version checks.
+- invitation acceptance uses conditional pending-token updates inside a transaction.
+- ownership transfer updates the previous and target owner memberships in one transaction.
+- active membership uniqueness is protected by a PostgreSQL partial unique index on organization and identity.
+- duplicate pending invitations are protected by a PostgreSQL partial unique index on organization and normalized recipient email.
+
+PostgreSQL-gated tests cover:
+
+- organization persistence and rehydration.
+- unique slug and active membership constraints.
+- invitation token-hash persistence and duplicate pending-invitation constraints.
+- atomic invitation acceptance and replay protection.
+- atomic ownership transfer.
+- unit-of-work rollback.
 
 ## Testing
 
@@ -197,9 +252,9 @@ Phase 7 domain tests cover:
 
 ## Known Limitations
 
-- no organization persistence.
 - no tenant RLS.
-- no Permission Evaluation Service.
+- no tenant request context propagation.
 - no invitation delivery.
 - no organization API.
 - no subscription, billing, API-key, payment-account or branding children.
+- PostgreSQL integration tests are present but skipped locally unless `RUN_POSTGRES_INTEGRATION=true` and `DATABASE_URL` point to a migrated PostgreSQL database.

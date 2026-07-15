@@ -4,7 +4,7 @@
 
 Design approved. Local implementation authorized by project-owner waiver.
 
-Implementation must follow the approved phase order. Phase 8 is complete and remains limited to Permission Evaluation with no persistence, tenant RLS, controllers or REST API.
+Implementation must follow the approved phase order. Phase 9 is complete and remains limited to Organization persistence with no tenant RLS, controllers or REST API.
 
 ## Objective
 
@@ -292,6 +292,37 @@ Not implemented in Phase 8:
 - NestJS guards.
 - HTTP middleware.
 - audit persistence.
+
+### Phase 9 - Organization Persistence
+
+Status: implemented, PostgreSQL runtime validation pending.
+
+Implemented locally:
+
+- Organization Prisma models and enums for organizations, memberships and invitations.
+- Versioned SQL migration for Organization persistence.
+- Repository contracts in `@seneve/domain-organization`.
+- `@seneve/organization-persistence` package with Prisma repository adapters.
+- Explicit mapping between Prisma records and organization persistence read models.
+- Unit-of-work transaction wrapper for organization persistence operations.
+- Atomic organization creation with initial owner membership.
+- Atomic invitation acceptance with membership creation.
+- Atomic ownership transfer.
+- Conditional updates for lifecycle mutations and invitation consumption.
+- PostgreSQL partial unique indexes for active memberships and pending invitations.
+- PostgreSQL-gated integration tests for organization persistence, constraints, transaction rollback, ownership transfer and invitation acceptance.
+
+Not implemented in Phase 9:
+
+- tenant request context propagation.
+- PostgreSQL Row-Level Security policies.
+- NestJS controllers.
+- REST DTOs.
+- organization HTTP API.
+- invitation delivery.
+- generic audit persistence.
+- custom role persistence.
+- subscriptions, billing, API keys, campaign functionality or tenant-scoped business modules.
 
 ## Confirmed V1 Authentication Decisions
 

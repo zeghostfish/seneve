@@ -574,87 +574,99 @@ Business validations:
 
 ### organizations
 
-Implementation status: proposed future schema. Phase 7 implements only the domain model and does not create this table yet.
+Implementation status: implemented in Epic 002 Phase 9.
 
 Purpose: tenant root for customer data.
 
 Fields:
 
 - `id`: UUID, primary key
-- `name`: text
-- `slug`: text, unique
+- `public_id`: text, nullable, unique
+- `display_name`: text, required
+- `slug`: text, required, unique
 - `status`: enum `OrganizationStatus`
-- `billing_status`: enum `BillingStatus`
 - `default_locale`: text
-- `default_timezone`: text
-- `settings`: jsonb
-- `branding`: jsonb
+- `timezone`: text
+- `version`: integer, default `1`
 - `created_at`: timestamp with time zone
 - `updated_at`: timestamp with time zone
-- `deleted_at`: timestamp with time zone, nullable
+- `activated_at`: timestamp with time zone, nullable
+- `suspended_at`: timestamp with time zone, nullable
+- `closed_at`: timestamp with time zone, nullable
+- `archived_at`: timestamp with time zone, nullable
 
 Indexes:
 
+- unique `public_id`
 - unique `slug`
 - `status`
-- `billing_status`
 
 Lifecycle:
 
 - draft
 - active
 - suspended
+- closed
 - archived
 
 Audit:
 
 - creation
-- settings changes
-- billing status changes
+- lifecycle changes
+- profile changes
 - suspension
 
 API exposure:
 
-- organization dashboard
-- platform administration
+- deferred until Organization API phase
+- platform administration path deferred until Tenant Context and Audit phases
 
 Permissions:
 
-- organization admins manage organization settings according to policy
-- platform admins may supervise all organizations
+- organization actions require Permission Evaluation before business logic
+- Phase 9 persists organization governance state only; it does not expose APIs
 
 Business validations:
 
 - slug must be unique and stable
-- billing policy may restrict campaign creation
+- slug must match the approved lowercase public-handle format
+- display name must not be blank
+- status timestamps must match the current lifecycle state
+- normal tenant RLS is deferred to the Tenant Context and Row-Level Security phase
 
 ### memberships
 
-Implementation status: proposed future schema. Phase 7 implements only the domain model and does not create this table yet.
+Implementation status: implemented in Epic 002 Phase 9.
 
-Purpose: association between users and organizations.
+Purpose: association between identities and organizations.
 
 Fields:
 
 - `id`: UUID, primary key
 - `organization_id`: UUID, required
 - `identity_id`: UUID, required
-- `status`: enum `MembershipStatus`
+- `role`: enum `OrganizationRole`
+- `status`: enum `OrganizationMembershipStatus`
+- `invitation_id`: UUID, nullable
 - `created_at`: timestamp with time zone
 - `updated_at`: timestamp with time zone
-- `invited_by`: UUID, nullable
+- `activated_at`: timestamp with time zone
+- `suspended_at`: timestamp with time zone, nullable
+- `removed_at`: timestamp with time zone, nullable
+- `last_changed_by`: UUID, required
 
 Indexes:
 
 - unique active membership for `organization_id`, `identity_id`
 - `organization_id`, `status`
 - `identity_id`, `status`
+- `organization_id`, `role`, `status`
 
 Relationships:
 
 - belongs to `organizations`
-- references Identity by identifier; it does not duplicate Identity or User profile data
-- has assigned roles through membership-role join table
+- references Identity by `identity_id`; it does not duplicate Identity or User profile data
+- optionally references the accepted invitation that created the membership
 
 Lifecycle:
 
@@ -666,15 +678,17 @@ Pending participation is represented by invitations, not by a duplicate pending 
 
 Audit:
 
-- invitation
-- acceptance
+- creation
+- activation
 - role changes
+- suspension
 - removal
 
 Permissions:
 
 - team managers invite members if policy permits
 - organization admins manage memberships
+- role-to-permission interpretation belongs to the Permission Evaluation Service
 
 Business validations:
 
@@ -682,8 +696,77 @@ Business validations:
 - active organization must retain at least one active owner
 - last owner cannot be removed, suspended or downgraded except through explicit ownership transfer
 - removed membership cannot silently become active again
+- duplicate active memberships are blocked by PostgreSQL partial unique index
+
+### organization_invitations
+
+Implementation status: implemented in Epic 002 Phase 9.
+
+Purpose: pending invitation to join one organization with an intended role.
+
+Fields:
+
+- `id`: UUID, primary key
+- `organization_id`: UUID, required
+- `normalized_recipient_email`: text, required
+- `intended_role`: enum `OrganizationRole`
+- `status`: enum `OrganizationInvitationStatus`
+- `token_id`: UUID, required, unique
+- `token_hash`: text, required, unique
+- `invited_by`: UUID, required
+- `created_at`: timestamp with time zone
+- `updated_at`: timestamp with time zone
+- `expires_at`: timestamp with time zone
+- `revoked_at`: timestamp with time zone, nullable
+- `accepted_at`: timestamp with time zone, nullable
+
+Indexes:
+
+- unique `token_id`
+- unique `token_hash`
+- unique pending invitation for `organization_id`, `normalized_recipient_email`
+- `organization_id`, `status`
+- `normalized_recipient_email`, `status`
+- `expires_at`
+
+Relationships:
+
+- belongs to `organizations`
+- `invited_by` references Identity by identifier
+- may be referenced by the membership created on acceptance
+
+Lifecycle:
+
+- pending
+- accepted
+- revoked
+- expired
+
+Audit:
+
+- invitation creation
+- revocation
+- expiration
+- acceptance
+
+Permissions:
+
+- invitation creation and revocation require Permission Evaluation before business logic
+- invitation delivery is deferred
+
+Business validations:
+
+- raw invitation tokens are never persisted
+- token hashes must use an approved non-plaintext hash prefix
+- normalized recipient email must be lowercase and trimmed
+- expiry must be after creation
+- accepted and revoked timestamp combinations are constrained
+- duplicate pending invitations are blocked by PostgreSQL partial unique index
+- invitation acceptance and membership creation must be atomic
 
 ### roles
+
+Implementation status: future authorization persistence. Phase 8 implements an in-code permission catalogue and does not create this table.
 
 Purpose: named permission grouping.
 
@@ -715,6 +798,8 @@ Business validations:
 
 ### permissions
 
+Implementation status: future authorization persistence. Phase 8 implements an immutable in-code permission catalogue and does not create this table.
+
 Purpose: explicit action grants.
 
 Fields:
@@ -737,6 +822,8 @@ Business validations:
 - permission keys are stable API-like identifiers
 
 ### policies
+
+Implementation status: future authorization persistence. Phase 8 implements declarative policy evaluation in application code and does not create this table.
 
 Purpose: authorization policy attached to permissions.
 

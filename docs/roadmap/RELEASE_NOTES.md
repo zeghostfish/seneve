@@ -47,6 +47,7 @@
 - Added Phase 6 password-reset application services, generic reset-request responses, ephemeral notification command boundary, Model B credential replacement, session and refresh-token revocation, and lifecycle tests.
 - Added Phase 7 organization aggregate domain foundation, including lifecycle governance, membership and invitation models, ownership-transfer invariants, stable organization errors, domain events, and unit tests.
 - Added Phase 8 permission evaluation service, immutable permission catalogue, role-to-permission mapping, declarative policy checks, structured authorization decisions, explicit deny precedence, platform administrator override, and authorization tests.
+- Added Phase 9 organization persistence schema, migration, repository contracts, Prisma adapters, unit-of-work transactions, PostgreSQL partial indexes, and gated integration tests for organization, membership and invitation persistence.
 
 ### Known Limitations
 
@@ -54,5 +55,5 @@
 - Official GitHub remote has not been provided or confirmed.
 - GitHub Actions has not run remotely.
 - Docker image build and Docker Compose startup validation have not run locally because Docker was unavailable.
-- Epic 002 Phase 8 has no controllers, public API, cookies, OpenAPI authentication routes, browser fingerprinting, email-provider delivery, notification outbox, Redis-backed rate limiting, authenticated password change, organization persistence, tenant isolation, authorization persistence, or generic audit persistence.
+- Epic 002 Phase 9 has no controllers, public API, cookies, OpenAPI authentication routes, browser fingerprinting, email-provider delivery, invitation delivery, notification outbox, Redis-backed rate limiting, authenticated password change, tenant isolation, authorization persistence, custom role persistence, Row-Level Security, or generic audit persistence.
 - PostgreSQL repository integration tests are present but skipped locally unless `RUN_POSTGRES_INTEGRATION=true` and `DATABASE_URL` point to a migrated PostgreSQL database.
