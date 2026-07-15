@@ -350,3 +350,43 @@ model OrganizationInvitation {
   @@index([expiresAt], map: "idx_org_invitations_expires_at")
   @@map("organization_invitations")
 }
+
+model AuditRecord {
+  id                 String   @id @default(uuid()) @db.Uuid
+  tenantId           String?  @map("tenant_id") @db.Uuid
+  streamType         String   @map("stream_type")
+  streamId           String   @map("stream_id")
+  sequenceNumber     Int      @map("sequence_number")
+  eventName          String   @map("event_name")
+  eventVersion       Int      @map("event_version")
+  occurredAt         DateTime @map("occurred_at") @db.Timestamptz(6)
+  actorType          String   @map("actor_type")
+  actorIdentityId    String?  @map("actor_identity_id") @db.Uuid
+  actorMembershipId  String?  @map("actor_membership_id") @db.Uuid
+  executionMode      String   @map("execution_mode")
+  executionSource    String   @map("execution_source")
+  resourceType       String   @map("resource_type")
+  resourceId         String?  @map("resource_id")
+  action             String
+  outcome            String
+  reasonCode         String?  @map("reason_code")
+  correlationId      String   @map("correlation_id")
+  requestId          String?  @map("request_id")
+  jobId              String?  @map("job_id")
+  privileged         Boolean  @default(false)
+  privilegedReason   String?  @map("privileged_reason")
+  retentionCategory  String   @map("retention_category")
+  metadataJson       Json     @map("metadata_json")
+  previousRecordHash String?  @map("previous_record_hash")
+  recordHash         String   @map("record_hash")
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@unique([streamType, streamId, sequenceNumber], map: "uq_audit_records_stream_sequence")
+  @@unique([recordHash], map: "uq_audit_records_record_hash")
+  @@index([tenantId, occurredAt], map: "idx_audit_records_tenant_occurred_at")
+  @@index([eventName, occurredAt], map: "idx_audit_records_event_occurred_at")
+  @@index([actorIdentityId, occurredAt], map: "idx_audit_records_actor_occurred_at")
+  @@index([resourceType, resourceId, occurredAt], map: "idx_audit_records_resource_occurred_at")
+  @@index([correlationId], map: "idx_audit_records_correlation_id")
+  @@map("audit_records")
+}
