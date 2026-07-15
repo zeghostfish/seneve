@@ -126,7 +126,11 @@ importers:
 
   packages/contracts: {}
 
+  packages/authorization-application: {}
+
   packages/domain/identity: {}
+
+  packages/domain/organization: {}
 
   packages/identity-application:
     dependencies:
@@ -148,6 +152,15 @@ importers:
       '@seneve/domain-identity':
         specifier: workspace:*
         version: link:../domain/identity
+
+  packages/organization-persistence:
+    dependencies:
+      '@prisma/client':
+        specifier: ^6.19.3
+        version: 6.19.3(prisma@6.19.3(typescript@5.9.3))(typescript@5.9.3)
+      '@seneve/domain-organization':
+        specifier: workspace:*
+        version: link:../domain/organization
 
   packages/shared: {}
 

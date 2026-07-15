@@ -22,6 +22,7 @@
       "@seneve/identity-application": ["packages/identity-application/src/index.ts"],
       "@seneve/identity-crypto": ["packages/identity-crypto/src/index.ts"],
       "@seneve/identity-persistence": ["packages/identity-persistence/src/index.ts"],
+      "@seneve/organization-persistence": ["packages/organization-persistence/src/index.ts"],
       "@seneve/testing": ["packages/testing/src/index.ts"]
     }
   }
