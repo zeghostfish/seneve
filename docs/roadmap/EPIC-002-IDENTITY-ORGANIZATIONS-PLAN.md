@@ -4,7 +4,7 @@
 
 Design approved. Local implementation authorized by project-owner waiver.
 
-Implementation must follow the approved phase order. Phase 7 is complete and remains limited to the Organization domain foundation with no persistence, tenant RLS, Permission Evaluation Service, controllers or REST API.
+Implementation must follow the approved phase order. Phase 8 is complete and remains limited to Permission Evaluation with no persistence, tenant RLS, controllers or REST API.
 
 ## Objective
 
@@ -261,6 +261,37 @@ Not implemented in Phase 7:
 - HTTP controllers.
 - invitation delivery.
 - subscription, billing, API keys, payment accounts or advanced branding.
+
+### Phase 8 - Permission Evaluation Service
+
+Status: complete.
+
+Implemented locally:
+
+- `@seneve/authorization-application` package.
+- immutable permission catalogue.
+- organization role-to-permission mapping.
+- platform administrator role mapping.
+- `PermissionEvaluationService`.
+- structured authorization decisions with `allowed`, `reasonCode`, `permission`, `policy`, `evaluatedConditions` and role metadata.
+- reusable condition names for tenant, membership, role, ownership, organization state, self-operation, invitation and explicit-deny checks.
+- declarative policy names for organization, membership, invitation, ownership, billing and future campaign-related permissions.
+- explicit platform administrator override path.
+- explicit deny precedence for last-owner-sensitive membership operations.
+- self-service membership read support.
+- stable authorization errors.
+
+Not implemented in Phase 8:
+
+- Prisma authorization tables.
+- migrations.
+- custom role persistence.
+- policy persistence.
+- tenant request context propagation.
+- PostgreSQL Row-Level Security.
+- NestJS guards.
+- HTTP middleware.
+- audit persistence.
 
 ## Confirmed V1 Authentication Decisions
 

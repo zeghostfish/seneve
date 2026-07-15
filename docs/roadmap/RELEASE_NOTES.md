@@ -46,6 +46,7 @@
 - Added Phase 5 email-verification application services, ephemeral notification command boundary, token supersession, resend throttling, atomic completion, and lifecycle tests.
 - Added Phase 6 password-reset application services, generic reset-request responses, ephemeral notification command boundary, Model B credential replacement, session and refresh-token revocation, and lifecycle tests.
 - Added Phase 7 organization aggregate domain foundation, including lifecycle governance, membership and invitation models, ownership-transfer invariants, stable organization errors, domain events, and unit tests.
+- Added Phase 8 permission evaluation service, immutable permission catalogue, role-to-permission mapping, declarative policy checks, structured authorization decisions, explicit deny precedence, platform administrator override, and authorization tests.
 
 ### Known Limitations
 
@@ -53,5 +54,5 @@
 - Official GitHub remote has not been provided or confirmed.
 - GitHub Actions has not run remotely.
 - Docker image build and Docker Compose startup validation have not run locally because Docker was unavailable.
-- Epic 002 Phase 7 has no controllers, public API, cookies, OpenAPI authentication routes, browser fingerprinting, email-provider delivery, notification outbox, Redis-backed rate limiting, authenticated password change, organization persistence, tenant isolation, Permission Evaluation Service, or generic audit persistence.
+- Epic 002 Phase 8 has no controllers, public API, cookies, OpenAPI authentication routes, browser fingerprinting, email-provider delivery, notification outbox, Redis-backed rate limiting, authenticated password change, organization persistence, tenant isolation, authorization persistence, or generic audit persistence.
 - PostgreSQL repository integration tests are present but skipped locally unless `RUN_POSTGRES_INTEGRATION=true` and `DATABASE_URL` point to a migrated PostgreSQL database.
