@@ -2,9 +2,9 @@
 
 ## Status
 
-Phase 5 implementation complete under the approved Local Implementation Waiver.
+Phase 6 implementation complete under the approved Local Implementation Waiver.
 
-The waiver authorizes Epic 002 local implementation before GitHub publication. Phase 5 remains limited to Email Verification application workflows. Controllers, public authentication endpoints, password reset, organization implementation, tenant RLS, and generic audit persistence remain deferred to later phases.
+The waiver authorizes Epic 002 local implementation before GitHub publication. Phase 6 remains limited to Password Reset application workflows. Controllers, public authentication endpoints, authenticated password change, organization implementation, tenant RLS, and generic audit persistence remain deferred to later phases.
 
 ## Objective
 
@@ -199,6 +199,15 @@ Phase 5 email-verification boundaries:
 - ResendEmailVerificationService applies application-level resend policy and supersedes obsolete pending tokens.
 - CompleteEmailVerificationService consumes eligible tokens and marks the primary email verified atomically.
 - raw verification tokens may appear only in `EmailVerificationNotificationCommand` output and must not be persisted or recorded in security events.
+
+Phase 6 password-reset boundaries:
+
+- RequestPasswordResetService creates reset challenges and returns a generic accepted result whether or not an eligible identity exists.
+- CompletePasswordResetService consumes eligible reset tokens and replaces the password credential atomically.
+- credential replacement uses Model B: revoke the active password credential and append a new active credential version.
+- password reset revokes all active sessions and refresh tokens by default because it is an account-recovery flow.
+- raw reset tokens may appear only in `PasswordResetNotificationCommand` output and must not be persisted or recorded in security events.
+- delivery remains an external side effect after durable state exists; Phase 6 returns an ephemeral command and does not implement an outbox or queue.
 
 Non-transactional external effects:
 
@@ -418,6 +427,64 @@ Phase 5 events:
 - `EMAIL_VERIFICATION_FAILED`
 - `EMAIL_VERIFICATION_EXPIRED`
 
+## Phase 6 Password Reset
+
+Application services:
+
+- `RequestPasswordResetService`
+- `CompletePasswordResetService`
+
+Token lifecycle:
+
+- generated through `TokenGenerator`
+- hashed through `TokenHasher`
+- persisted only as token hash
+- superseded by revoking pending previous tokens
+- consumed through conditional repository update
+- invalid for suspended or closed identities
+- completion revokes remaining pending reset tokens for the identity
+
+Request policy:
+
+- unknown and ineligible identities return the same accepted response shape without a notification command.
+- minimum request delay is configurable.
+- request window and maximum request count are enforced through repository-backed application policy.
+- active unexpired reset requests before the minimum delay are denied with `PASSWORD_RESET_REQUEST_THROTTLED` for eligible identities.
+- new request/resend supersedes previous pending tokens when configured.
+
+Credential replacement strategy:
+
+- Seneve uses Model B for password reset.
+- the active password credential row is revoked.
+- a new active password credential row is inserted with a new credential id and incremented credential version.
+- only one active password credential may remain after completion.
+- plaintext and reversibly encrypted password history are never stored.
+- historical password reuse comparison remains deferred; Phase 6 can reject reuse of the current active password when `preventPasswordReuseCount > 0`.
+
+Session and token revocation:
+
+- successful password reset revokes all active sessions.
+- successful password reset revokes active and rotated refresh tokens linked to the identity sessions.
+- access through old sessions is invalidated by revoked session state and identity credential-version updates.
+- the user must log in again after completing password reset.
+
+Notification boundary:
+
+- `PasswordResetNotificationCommand`
+- contains recipient email, template id, locale, raw reset token, token id, expiry and correlation id
+- command is ephemeral and not persisted as a domain/security event
+- delivery failure after transaction commit is a notification retry concern and must not roll back credential replacement
+
+Phase 6 events:
+
+- `PASSWORD_RESET_REQUESTED`
+- `PASSWORD_RESET_RESENT`
+- `PASSWORD_RESET_COMPLETED`
+- `PASSWORD_RESET_FAILED`
+- `PASSWORD_RESET_EXPIRED`
+- `PASSWORD_CREDENTIAL_REPLACED`
+- `SESSIONS_REVOKED_AFTER_PASSWORD_RESET`
+
 ## Error Taxonomy
 
 Identity error codes:
@@ -463,6 +530,16 @@ Phase 5 email-verification error codes:
 - `EMAIL_VERIFICATION_REQUEST_THROTTLED`
 - `EMAIL_VERIFICATION_NOT_ALLOWED`
 - `EMAIL_VERIFICATION_TRANSACTION_FAILED`
+
+Phase 6 password-reset error codes:
+
+- `PASSWORD_RESET_TOKEN_INVALID`
+- `PASSWORD_RESET_TOKEN_EXPIRED`
+- `PASSWORD_RESET_TOKEN_CONSUMED`
+- `PASSWORD_RESET_REQUEST_THROTTLED`
+- `PASSWORD_RESET_NOT_ALLOWED`
+- `PASSWORD_REUSE_NOT_ALLOWED`
+- `PASSWORD_RESET_TRANSACTION_FAILED`
 
 Security response rule:
 
@@ -547,6 +624,17 @@ Unit tests:
 - email-verification completion
 - invalid, expired and consumed token handling
 - verification transaction rollback
+- password-reset request
+- password-reset generic unknown-account response
+- password-reset request throttling
+- password-reset token supersession
+- password-reset completion
+- invalid, expired and consumed reset-token handling
+- password-policy failure before token consumption
+- current-password reuse rejection when configured
+- credential replacement
+- all-session and refresh-token revocation after reset
+- reset transaction rollback
 
 Integration tests:
 

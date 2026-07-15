@@ -256,6 +256,7 @@ Business validations:
 
 - plaintext passwords are never stored
 - only one active password credential may exist for an identity
+- Phase 6 password reset uses append-version credential replacement: revoke the active password credential and insert a new active password credential version
 
 ### sessions
 
@@ -569,6 +570,7 @@ Business validations:
 - events are security history, not authorization source of truth
 - Phase 4 event types include `SESSION_EXPIRED`, `NEW_DEVICE`, `SUSPICIOUS_LOGIN`, `CONCURRENT_LOGIN_LIMIT_REACHED`, `ADMINISTRATOR_SESSION_REVOKED`, and `SECURITY_POLICY_VIOLATION`
 - Phase 5 event types include `EMAIL_VERIFICATION_REQUESTED`, `EMAIL_VERIFICATION_RESENT`, `EMAIL_VERIFIED`, `EMAIL_VERIFICATION_FAILED`, and `EMAIL_VERIFICATION_EXPIRED`
+- Phase 6 event types include `PASSWORD_RESET_REQUESTED`, `PASSWORD_RESET_RESENT`, `PASSWORD_RESET_COMPLETED`, `PASSWORD_RESET_FAILED`, `PASSWORD_RESET_EXPIRED`, `PASSWORD_CREDENTIAL_REPLACED`, and `SESSIONS_REVOKED_AFTER_PASSWORD_RESET`
 
 ### organizations
 

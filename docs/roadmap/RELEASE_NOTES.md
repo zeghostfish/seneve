@@ -44,6 +44,7 @@
 - Added Phase 3 authentication application services, crypto abstractions, native Node Argon2id password hasher, token hashing, access-token issuing, and unit tests for registration, login, refresh, logout, revocation, and suspension flows.
 - Added Phase 4 identity security and session management foundations, including trusted-device persistence, configurable security decisions, session listing/revocation services, device identification, and expanded security events.
 - Added Phase 5 email-verification application services, ephemeral notification command boundary, token supersession, resend throttling, atomic completion, and lifecycle tests.
+- Added Phase 6 password-reset application services, generic reset-request responses, ephemeral notification command boundary, Model B credential replacement, session and refresh-token revocation, and lifecycle tests.
 
 ### Known Limitations
 
@@ -51,5 +52,5 @@
 - Official GitHub remote has not been provided or confirmed.
 - GitHub Actions has not run remotely.
 - Docker image build and Docker Compose startup validation have not run locally because Docker was unavailable.
-- Epic 002 Phase 5 has no controllers, public API, cookies, OpenAPI authentication routes, browser fingerprinting, email-provider delivery, Redis-backed rate limiting, password reset, organization persistence, tenant isolation, or generic audit persistence.
+- Epic 002 Phase 6 has no controllers, public API, cookies, OpenAPI authentication routes, browser fingerprinting, email-provider delivery, notification outbox, Redis-backed rate limiting, authenticated password change, organization persistence, tenant isolation, or generic audit persistence.
 - PostgreSQL repository integration tests are present but skipped locally unless `RUN_POSTGRES_INTEGRATION=true` and `DATABASE_URL` point to a migrated PostgreSQL database.

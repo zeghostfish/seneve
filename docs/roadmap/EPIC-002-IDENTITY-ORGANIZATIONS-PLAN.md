@@ -4,7 +4,7 @@
 
 Design approved. Local implementation authorized by project-owner waiver.
 
-Implementation must follow the approved phase order. Phase 5 is complete and remains limited to Email Verification application workflows with no controllers or REST API.
+Implementation must follow the approved phase order. Phase 6 is complete and remains limited to Password Reset application workflows with no controllers or REST API.
 
 ## Objective
 
@@ -195,6 +195,38 @@ Not implemented in Phase 5:
 - password reset.
 - Redis/API-layer abuse controls.
 - email address change workflow.
+
+### Phase 6 - Password Reset
+
+Status: complete.
+
+Implemented locally:
+
+- `RequestPasswordResetService`.
+- `CompletePasswordResetService`.
+- ephemeral `PasswordResetNotificationCommand` boundary for raw reset tokens.
+- generic accepted reset-request response that does not expose account existence.
+- secure token generation and hashing through existing abstractions.
+- pending-token supersession before new reset-token creation.
+- request throttling based on latest token metadata and configured request-window limits.
+- Model B credential replacement: revoke the active password credential and append a new active credential version.
+- password-policy enforcement before token consumption.
+- optional current-password reuse rejection when configured.
+- atomic reset-token consumption, credential replacement, pending-token revocation, session revocation and refresh-token revocation through `IdentityUnitOfWork`.
+- stable password-reset application errors.
+- security events for reset request, resend, completion, failure, expiry, credential replacement and session revocation.
+
+Not implemented in Phase 6:
+
+- external email-provider delivery.
+- outbox persistence or notification queue integration.
+- HTTP controllers.
+- REST DTOs.
+- cookies.
+- JWT middleware.
+- authenticated password change.
+- historical password reuse comparison beyond the current active password.
+- Redis/API-layer abuse controls.
 
 ## Confirmed V1 Authentication Decisions
 
