@@ -4,7 +4,7 @@
 
 Design approved. Local implementation authorized by project-owner waiver.
 
-Implementation must follow the approved phase order. Phase 4 is limited to Identity security and session management with no controllers or REST API.
+Implementation must follow the approved phase order. Phase 5 is complete and remains limited to Email Verification application workflows with no controllers or REST API.
 
 ## Objective
 
@@ -139,7 +139,7 @@ Not implemented in Phase 3:
 
 ### Phase 4 - Identity Security and Session Management
 
-Status: in progress.
+Status: complete.
 
 Implemented locally:
 
@@ -167,6 +167,34 @@ Not implemented in Phase 4:
 - email-verification completion.
 - password reset.
 - Redis-backed API rate limiting.
+
+### Phase 5 - Email Verification
+
+Status: complete.
+
+Implemented locally:
+
+- `RequestEmailVerificationService`.
+- `CompleteEmailVerificationService`.
+- `ResendEmailVerificationService`.
+- ephemeral `EmailVerificationNotificationCommand` boundary for raw verification tokens.
+- secure token generation and hashing through existing abstractions.
+- pending-token supersession before new request/resend token creation.
+- resend throttling based on latest token metadata and configured request-window limits.
+- atomic token consumption and primary-email verification through `IdentityUnitOfWork`.
+- stable email-verification application errors.
+- security events for verification request, resend, completion, failure and expiry.
+
+Not implemented in Phase 5:
+
+- external email-provider delivery.
+- HTTP controllers.
+- REST DTOs.
+- cookies.
+- JWT middleware.
+- password reset.
+- Redis/API-layer abuse controls.
+- email address change workflow.
 
 ## Confirmed V1 Authentication Decisions
 

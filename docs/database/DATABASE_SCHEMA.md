@@ -568,6 +568,7 @@ Business validations:
 
 - events are security history, not authorization source of truth
 - Phase 4 event types include `SESSION_EXPIRED`, `NEW_DEVICE`, `SUSPICIOUS_LOGIN`, `CONCURRENT_LOGIN_LIMIT_REACHED`, `ADMINISTRATOR_SESSION_REVOKED`, and `SECURITY_POLICY_VIOLATION`
+- Phase 5 event types include `EMAIL_VERIFICATION_REQUESTED`, `EMAIL_VERIFICATION_RESENT`, `EMAIL_VERIFIED`, `EMAIL_VERIFICATION_FAILED`, and `EMAIL_VERIFICATION_EXPIRED`
 
 ### organizations
 

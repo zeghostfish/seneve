@@ -2,9 +2,9 @@
 
 ## Status
 
-Phase 4 implementation in progress under the approved Local Implementation Waiver.
+Phase 5 implementation complete under the approved Local Implementation Waiver.
 
-The waiver authorizes Epic 002 local implementation before GitHub publication. Phase 4 remains limited to Identity security and session management. Controllers, public authentication endpoints, email verification completion, password reset, organization implementation, tenant RLS, and generic audit persistence remain deferred to later phases.
+The waiver authorizes Epic 002 local implementation before GitHub publication. Phase 5 remains limited to Email Verification application workflows. Controllers, public authentication endpoints, password reset, organization implementation, tenant RLS, and generic audit persistence remain deferred to later phases.
 
 ## Objective
 
@@ -193,6 +193,13 @@ Phase 4 session/security boundaries:
 - AuthenticationService consults the Security Decision Service instead of embedding maximum-session and email-verification policy.
 - Trusted devices are represented by a hashed fingerprint abstraction; browser fingerprint collection remains deferred.
 
+Phase 5 email-verification boundaries:
+
+- RequestEmailVerificationService creates verification challenges and emits ephemeral notification commands.
+- ResendEmailVerificationService applies application-level resend policy and supersedes obsolete pending tokens.
+- CompleteEmailVerificationService consumes eligible tokens and marks the primary email verified atomically.
+- raw verification tokens may appear only in `EmailVerificationNotificationCommand` output and must not be persisted or recorded in security events.
+
 Non-transactional external effects:
 
 - email delivery is triggered after durable state is recorded.
@@ -373,6 +380,44 @@ Security concerns remain separated:
 - Security evaluates policy and records security facts.
 - Authorization remains deferred to the Permission Evaluation phase.
 
+## Phase 5 Email Verification
+
+Application services:
+
+- `RequestEmailVerificationService`
+- `CompleteEmailVerificationService`
+- `ResendEmailVerificationService`
+
+Token lifecycle:
+
+- generated through `TokenGenerator`
+- hashed through `TokenHasher`
+- persisted only as token hash
+- superseded by revoking pending previous tokens
+- consumed through conditional repository update
+- completion and primary-email verification are performed in one unit of work
+
+Resend policy:
+
+- minimum resend delay is configurable.
+- request window and maximum request count are enforced through repository-backed application policy.
+- active unexpired token resends before the minimum delay are denied with `EMAIL_VERIFICATION_REQUEST_THROTTLED`.
+- new request/resend supersedes previous pending tokens when configured.
+
+Notification boundary:
+
+- `EmailVerificationNotificationCommand`
+- contains recipient email, template id, locale, raw verification token, token id, expiry and correlation id
+- command is ephemeral and not persisted as a domain/security event
+
+Phase 5 events:
+
+- `EMAIL_VERIFICATION_REQUESTED`
+- `EMAIL_VERIFICATION_RESENT`
+- `EMAIL_VERIFIED`
+- `EMAIL_VERIFICATION_FAILED`
+- `EMAIL_VERIFICATION_EXPIRED`
+
 ## Error Taxonomy
 
 Identity error codes:
@@ -408,6 +453,16 @@ Phase 3 application error codes:
 - `REGISTRATION_CONFLICT`
 - `PASSWORD_POLICY_VIOLATION`
 - `AUTHENTICATION_TRANSACTION_FAILED`
+
+Phase 5 email-verification error codes:
+
+- `EMAIL_ALREADY_VERIFIED`
+- `EMAIL_VERIFICATION_TOKEN_INVALID`
+- `EMAIL_VERIFICATION_TOKEN_EXPIRED`
+- `EMAIL_VERIFICATION_TOKEN_CONSUMED`
+- `EMAIL_VERIFICATION_REQUEST_THROTTLED`
+- `EMAIL_VERIFICATION_NOT_ALLOWED`
+- `EMAIL_VERIFICATION_TRANSACTION_FAILED`
 
 Security response rule:
 
@@ -485,6 +540,13 @@ Unit tests:
 - selected and administrator session revocation
 - revoke-all-except-current
 - trusted-device registration and lookup
+- email-verification request
+- email-verification resend
+- resend throttling
+- token supersession
+- email-verification completion
+- invalid, expired and consumed token handling
+- verification transaction rollback
 
 Integration tests:
 
