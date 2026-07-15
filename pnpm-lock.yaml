@@ -165,6 +165,9 @@ importers:
       '@seneve/domain-organization':
         specifier: workspace:*
         version: link:../domain/organization
+      '@seneve/tenant-context':
+        specifier: workspace:*
+        version: link:../tenant-context
 
   packages/tenant-context: {}
 

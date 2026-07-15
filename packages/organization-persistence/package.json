@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",
-    "@seneve/domain-organization": "workspace:*"
+    "@seneve/domain-organization": "workspace:*",
+    "@seneve/tenant-context": "workspace:*"
   }
 }
