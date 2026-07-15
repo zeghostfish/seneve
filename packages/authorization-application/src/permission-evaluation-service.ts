@@ -1,3 +1,5 @@
+import type { TenantContext } from '@seneve/tenant-context';
+
 import {
   type OrganizationRole,
   type PermissionId,
@@ -48,10 +50,6 @@ export interface AuthorizationActor {
   readonly identityStatus?: 'ACTIVE' | 'SUSPENDED' | 'CLOSED' | 'PENDING_EMAIL_VERIFICATION';
   readonly emailVerified?: boolean;
   readonly platformRoles?: readonly PlatformRole[];
-}
-
-export interface TenantContext {
-  readonly organizationId?: string | null;
 }
 
 export interface AuthorizationMembership {
@@ -175,9 +173,9 @@ export class PermissionEvaluationService {
     const isAdmin = Boolean(input.actor.platformRoles?.includes('PLATFORM_SUPER_ADMINISTRATOR'));
     const sameTenant =
       permissionScope === 'global' ||
-      !input.tenant.organizationId ||
+      !input.tenant.tenantId ||
       !input.organization ||
-      input.tenant.organizationId === input.organization.id;
+      input.tenant.tenantId === input.organization.id;
 
     return {
       policy: 'platform.administrator.override',
@@ -247,13 +245,12 @@ function evaluateExplicitDeny(input: PermissionEvaluationInput): PolicyEvaluatio
 }
 
 function evaluateTenant(input: PermissionEvaluationInput): PolicyEvaluation {
-  const tenantRequired = Boolean(input.tenant.organizationId);
+  const tenantRequired = Boolean(input.tenant.tenantId);
   const organizationMatches = Boolean(
     input.organization &&
-    input.tenant.organizationId &&
-    input.organization.id === input.tenant.organizationId &&
-    (!input.resource?.organizationId ||
-      input.resource.organizationId === input.tenant.organizationId),
+    input.tenant.tenantId &&
+    input.organization.id === input.tenant.tenantId &&
+    (!input.resource?.organizationId || input.resource.organizationId === input.tenant.tenantId),
   );
 
   return {
@@ -271,7 +268,7 @@ function evaluateRolePermission(input: PermissionEvaluationInput): PolicyEvaluat
     membership &&
     membership.status === 'ACTIVE' &&
     membership.identityId === input.actor.identityId &&
-    membership.organizationId === input.tenant.organizationId,
+    membership.organizationId === input.tenant.tenantId,
   );
   const rolePermissions = membership ? organizationRolePermissions[membership.role] : [];
   const selfMembershipRead =

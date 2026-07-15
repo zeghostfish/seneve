@@ -1,3 +1,8 @@
+import {
+  anonymousTenantContext,
+  organizationTenantContext,
+  platformAdminTenantContext,
+} from '@seneve/tenant-context';
 import { describe, expect, it } from 'vitest';
 
 import { allPermissions, type PermissionId } from './permission-catalogue.js';
@@ -15,6 +20,7 @@ const actor = {
   emailVerified: true,
 };
 const organization = { id: 'organization-1', status: 'ACTIVE' as const };
+const ownerMembershipId = 'membership-owner';
 const ownerMembership: AuthorizationMembership = {
   organizationId: organization.id,
   identityId: actor.identityId,
@@ -58,7 +64,7 @@ describe('PermissionEvaluationService', () => {
   it('returns structured denial for cross-tenant operations', () => {
     const decision = service.evaluate({
       ...allowedInput('invitation:create'),
-      tenant: { organizationId: 'organization-2' },
+      tenant: organizationContext('organization-2'),
     });
 
     expect(decision).toMatchObject({
@@ -77,7 +83,7 @@ describe('PermissionEvaluationService', () => {
   it('denies organization-scoped permissions when tenant context is missing', () => {
     const decision = service.evaluate({
       ...allowedInput('membership:create'),
-      tenant: {},
+      tenant: anonymousContext('correlation-missing-tenant'),
     });
 
     expect(decision).toMatchObject({
@@ -140,7 +146,7 @@ describe('PermissionEvaluationService', () => {
   it('supports self-service membership reads without broad membership-read permission', () => {
     const decision = service.evaluate({
       actor,
-      tenant: { organizationId: organization.id },
+      tenant: organizationContext(organization.id),
       permission: 'membership:read',
       organization,
       membership: viewerMembership,
@@ -168,7 +174,7 @@ describe('PermissionEvaluationService', () => {
         identityId: 'platform-admin',
         platformRoles: ['PLATFORM_SUPER_ADMINISTRATOR'],
       },
-      tenant: { organizationId: organization.id },
+      tenant: platformContext(organization.id),
       permission: 'organization:suspend',
       organization,
     });
@@ -185,7 +191,7 @@ function allowedInput(permission: PermissionId): PermissionEvaluationInput {
   if (permission === 'organization:create') {
     return {
       actor,
-      tenant: {},
+      tenant: anonymousContext('correlation-organization-create'),
       permission,
     };
   }
@@ -196,7 +202,14 @@ function allowedInput(permission: PermissionId): PermissionEvaluationInput {
         identityId: 'platform-admin',
         platformRoles: ['PLATFORM_SUPER_ADMINISTRATOR'],
       },
-      tenant: permission === 'system:admin' ? {} : { organizationId: organization.id },
+      tenant:
+        permission === 'system:admin'
+          ? platformAdminTenantContext({
+              identityId: 'platform-admin',
+              correlationId: 'correlation-system-admin',
+              executionSource: 'INTERNAL_WORKFLOW',
+            })
+          : platformContext(organization.id),
       permission,
       organization: permission === 'system:admin' ? null : organization,
     };
@@ -205,7 +218,7 @@ function allowedInput(permission: PermissionId): PermissionEvaluationInput {
   if (permission === 'organization:archive') {
     return {
       actor,
-      tenant: { organizationId: organization.id },
+      tenant: organizationContext(organization.id),
       permission,
       organization: { id: organization.id, status: 'CLOSED' },
       membership: ownerMembership,
@@ -215,7 +228,7 @@ function allowedInput(permission: PermissionId): PermissionEvaluationInput {
   if (permission === 'ownership:transfer') {
     return {
       actor,
-      tenant: { organizationId: organization.id },
+      tenant: organizationContext(organization.id),
       permission,
       organization,
       membership: ownerMembership,
@@ -253,7 +266,7 @@ function deniedInput(permission: PermissionId): PermissionEvaluationInput {
         identityStatus: 'PENDING_EMAIL_VERIFICATION',
         emailVerified: false,
       },
-      tenant: {},
+      tenant: anonymousContext('correlation-denied-create'),
       permission,
     };
   }
@@ -261,7 +274,7 @@ function deniedInput(permission: PermissionId): PermissionEvaluationInput {
   if (permission === 'system:admin') {
     return {
       actor,
-      tenant: {},
+      tenant: anonymousContext('correlation-denied-system'),
       permission,
     };
   }
@@ -269,7 +282,7 @@ function deniedInput(permission: PermissionId): PermissionEvaluationInput {
   if (permission === 'organization:suspend') {
     return {
       actor,
-      tenant: { organizationId: organization.id },
+      tenant: organizationContext(organization.id),
       permission,
       organization,
       membership: ownerMembership,
@@ -292,10 +305,39 @@ function organizationInput(
 ): PermissionEvaluationInput {
   return {
     actor,
-    tenant: { organizationId: organization.id },
+    tenant: organizationContext(organization.id),
     permission,
     organization,
     membership,
     resource,
   };
+}
+
+function anonymousContext(correlationId: string) {
+  return anonymousTenantContext({
+    correlationId,
+    executionSource: 'INTERNAL_WORKFLOW',
+  });
+}
+
+function organizationContext(tenantId: string) {
+  return organizationTenantContext({
+    tenantId,
+    identityId: actor.identityId,
+    membershipId: ownerMembershipId,
+    role: 'OWNER',
+    correlationId: `correlation-${tenantId}`,
+    executionSource: 'INTERNAL_WORKFLOW',
+  });
+}
+
+function platformContext(tenantId: string) {
+  return organizationTenantContext({
+    tenantId,
+    identityId: 'platform-admin',
+    membershipId: 'platform-context-membership',
+    role: 'OWNER',
+    correlationId: `correlation-platform-${tenantId}`,
+    executionSource: 'INTERNAL_WORKFLOW',
+  });
 }
