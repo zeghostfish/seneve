@@ -4,7 +4,7 @@
 
 Design approved. Local implementation authorized by project-owner waiver.
 
-Implementation must follow the approved phase order. Phase 9 is complete and remains limited to Organization persistence with no tenant RLS, controllers or REST API.
+Implementation must follow the approved phase order. Phase 10 is complete and remains limited to Tenant Context infrastructure with no PostgreSQL RLS, controllers or REST API.
 
 ## Objective
 
@@ -323,6 +323,35 @@ Not implemented in Phase 9:
 - generic audit persistence.
 - custom role persistence.
 - subscriptions, billing, API keys, campaign functionality or tenant-scoped business modules.
+
+### Phase 10 - Tenant Context Engine
+
+Status: complete.
+
+Implemented locally:
+
+- `@seneve/tenant-context` package.
+- canonical `TenantContext`.
+- `TenantScope`.
+- `TenantResolver`.
+- `TenantContextProvider`.
+- `TenantExecutionContext`.
+- AsyncLocalStorage propagation provider.
+- execution modes for anonymous, authenticated, tenant, platform administration, cross-tenant and system execution.
+- execution-source support for HTTP requests, worker jobs, CLI commands, scheduled tasks, internal workflows, future webhooks and future API tokens.
+- cross-tenant execution validation requiring platform administrator role, target tenant, reason and correlation identifier.
+- authorization integration through canonical tenant context consumption.
+- tests for HTTP context creation, worker propagation, nested application-service propagation, unit-of-work propagation, cross-tenant rejection, platform override, missing tenant, anonymous execution and correlation propagation.
+
+Not implemented in Phase 10:
+
+- PostgreSQL Row-Level Security policies.
+- `SET LOCAL`.
+- database session variables.
+- Prisma middleware for RLS.
+- tenant-aware HTTP middleware.
+- REST controllers.
+- generic audit persistence.
 
 ## Confirmed V1 Authentication Decisions
 
