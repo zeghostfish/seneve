@@ -11,8 +11,11 @@ RLS is enabled and forced on:
 - `organizations`
 - `organization_memberships`
 - `organization_invitations`
+- `audit_records`
 
 Identity authentication tables remain platform-scoped in this phase. They do not receive organization RLS until a concrete tenant-owned identity record exists.
+
+Audit rows are protected by tenant stream or explicit platform context. Audit records remain append-only and cannot be updated or deleted through normal application paths.
 
 ## Policy Semantics
 

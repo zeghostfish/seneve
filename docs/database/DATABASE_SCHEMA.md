@@ -1695,6 +1695,73 @@ Business validations:
 
 - files must be scanned or validated according to security policy before public use
 
+### audit_records
+
+Implementation status: implemented in Epic 002 Phase 12.
+
+Purpose: immutable, tenant-aware historical record of significant business, security and privileged actions.
+
+Fields:
+
+- `id`: UUID, primary key
+- `tenant_id`: UUID, nullable for platform stream
+- `stream_type`: text, constrained to `TENANT` or `PLATFORM`
+- `stream_id`: text
+- `sequence_number`: integer
+- `event_name`: text
+- `event_version`: integer
+- `occurred_at`: timestamp with time zone
+- `actor_type`: text
+- `actor_identity_id`: UUID, nullable
+- `actor_membership_id`: UUID, nullable
+- `execution_mode`: text
+- `execution_source`: text
+- `resource_type`: text
+- `resource_id`: text, nullable
+- `action`: text
+- `outcome`: text, constrained to `SUCCEEDED`, `DENIED`, `FAILED`
+- `reason_code`: text, nullable
+- `correlation_id`: text
+- `request_id`: text, nullable
+- `job_id`: text, nullable
+- `privileged`: boolean
+- `privileged_reason`: text, nullable
+- `retention_category`: text
+- `metadata_json`: jsonb
+- `previous_record_hash`: text, nullable
+- `record_hash`: text
+- `created_at`: timestamp with time zone
+
+Indexes:
+
+- unique `stream_type`, `stream_id`, `sequence_number`
+- unique `record_hash`
+- `tenant_id`, `occurred_at`
+- `event_name`, `occurred_at`
+- `actor_identity_id`, `occurred_at`
+- `resource_type`, `resource_id`, `occurred_at`
+- `correlation_id`
+
+Lifecycle:
+
+- append only
+- no update
+- no delete
+- corrections require a new audit record
+
+Isolation:
+
+- tenant audit rows are protected by RLS
+- platform audit rows require privileged platform context
+
+Business validations:
+
+- privileged records require a reason
+- record hashes use `sha256`
+- per-stream sequence numbers are unique
+- tenant streams must use `tenant_id` as `stream_id`
+- raw credentials, tokens, authorization headers and cookies are forbidden from metadata
+
 ## Required Initial Enums
 
 The exact enum values must be finalized with migrations. Initial required enums include:

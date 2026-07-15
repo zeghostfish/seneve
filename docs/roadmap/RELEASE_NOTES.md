@@ -50,6 +50,7 @@
 - Added Phase 9 organization persistence schema, migration, repository contracts, Prisma adapters, unit-of-work transactions, PostgreSQL partial indexes, and gated integration tests for organization, membership and invitation persistence.
 - Added Phase 10 tenant context engine, canonical execution context, tenant resolver, AsyncLocalStorage propagation, cross-tenant execution safeguards, authorization integration, and tenant-context architecture documentation.
 - Added Phase 11 PostgreSQL Row-Level Security migration, transaction-local tenant settings, tenant-aware Prisma transaction boundary, RLS unit tests, PostgreSQL-gated tenant-isolation tests, and RLS security documentation.
+- Added Phase 12 generic audit persistence, immutable audit record model, event catalogue, per-stream hash chaining, metadata sanitization, audit append service, Prisma persistence adapter, integration adapters for Identity and Organization events, and PostgreSQL-gated audit tests.
 
 ### Known Limitations
 
@@ -57,5 +58,5 @@
 - Official GitHub remote has not been provided or confirmed.
 - GitHub Actions has not run remotely.
 - Docker image build and Docker Compose startup validation have not run locally because Docker was unavailable.
-- Epic 002 Phase 11 has no controllers, public API, cookies, OpenAPI authentication routes, browser fingerprinting, email-provider delivery, invitation delivery, notification outbox, Redis-backed rate limiting, authenticated password change, authorization persistence, custom role persistence, production role provisioning automation, or generic audit persistence.
+- Epic 002 Phase 12 has no controllers, public API, cookies, OpenAPI authentication routes, browser fingerprinting, email-provider delivery, invitation delivery, notification outbox, Redis-backed rate limiting, authenticated password change, authorization persistence, custom role persistence, production role provisioning automation, audit HTTP endpoints, audit UI, export files, retention deletion jobs, SIEM integration, external log shipping, or frontend integration.
 - PostgreSQL repository integration tests are present but skipped locally unless `RUN_POSTGRES_INTEGRATION=true` and `DATABASE_URL` point to a migrated PostgreSQL database.

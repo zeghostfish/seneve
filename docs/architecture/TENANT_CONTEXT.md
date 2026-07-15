@@ -129,6 +129,21 @@ The Permission Evaluation Service now consumes the canonical `TenantContext`.
 
 Authorization decisions still require explicit organization, membership and resource inputs where the caller has already loaded those records. Tenant Context supplies the execution scope; it does not replace current membership or organization state queries.
 
+## Audit Integration
+
+The Audit subsystem consumes Tenant Context for:
+
+- actor identity;
+- membership identifier;
+- tenant identifier;
+- execution mode;
+- execution source;
+- correlation identifier;
+- request identifier;
+- privileged reason.
+
+Audit must not infer privileged access from client input. Privileged audit fields come only from validated server-side execution context.
+
 ## RLS Boundary
 
 Phase 10 explicitly does not implement:

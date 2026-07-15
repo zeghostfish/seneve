@@ -76,6 +76,7 @@ The PostgreSQL suite currently covers:
 - Identity persistence;
 - Organization persistence;
 - PostgreSQL Row-Level Security tenant isolation.
+- Audit persistence and audit RLS.
 
 Phase 11 validation target:
 

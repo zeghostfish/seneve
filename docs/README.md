@@ -13,8 +13,10 @@ Before implementation, contributors must read:
 2. `docs/adr/ADR-INDEX.md`
 3. `docs/architecture/TENANT_CONTEXT.md`
 4. `docs/security/POSTGRESQL_ROW_LEVEL_SECURITY.md`
-5. `docs/database/DATABASE_SCHEMA.md`
-6. `docs/roadmap/EPIC-001-FOUNDATION.md`
+5. `docs/security/AUDIT_ARCHITECTURE.md`
+6. `docs/security/AUDIT_EVENT_CATALOG.md`
+7. `docs/database/DATABASE_SCHEMA.md`
+8. `docs/roadmap/EPIC-001-FOUNDATION.md`
 
 Additional product and module specifications from the source requirements remain authoritative and must be migrated into this documentation set as the repository matures.
 

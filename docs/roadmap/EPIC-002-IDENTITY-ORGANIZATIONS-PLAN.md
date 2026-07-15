@@ -4,7 +4,7 @@
 
 Design approved. Local implementation authorized by project-owner waiver.
 
-Implementation must follow the approved phase order. Phase 11 is implemented and remains limited to PostgreSQL Row-Level Security with no Audit persistence, controllers or REST API.
+Implementation must follow the approved phase order. Phase 12 is implemented and remains limited to Generic Audit Persistence with no controllers, REST API or frontend integration.
 
 ## Objective
 
@@ -379,6 +379,42 @@ Not implemented in Phase 11:
 - REST controllers.
 - frontend tenant selection.
 - production role provisioning automation.
+
+### Phase 12 - Generic Audit Persistence
+
+Status: implemented, PostgreSQL runtime validation pending.
+
+Implemented locally:
+
+- `@seneve/domain-audit` package.
+- `@seneve/audit-application` package.
+- `@seneve/audit-persistence` package.
+- immutable `audit_records` Prisma model and migration.
+- audit event catalogue with version `1` contracts.
+- audit append service.
+- metadata sanitization.
+- deterministic canonical serialization.
+- per-stream SHA-256 hash chaining.
+- per-tenant and platform audit streams.
+- Prisma audit repository with advisory transaction lock for sequence allocation.
+- append-only database triggers rejecting update and delete.
+- RLS policies for tenant and platform audit records.
+- identity security event to audit mapping.
+- organization domain event to audit mapping.
+- integration adapters for identity security events and organization domain events.
+- internal audit query contract.
+- unit tests for audit contracts, metadata sanitization, hash-chain verification and integration adapters.
+- PostgreSQL-gated audit persistence tests.
+
+Not implemented in Phase 12:
+
+- HTTP audit endpoints.
+- admin audit UI.
+- export files.
+- retention deletion jobs.
+- SIEM integration.
+- external log shipping.
+- Campaign, Voting, Financial or Billing audit events.
 
 ## Confirmed V1 Authentication Decisions
 
