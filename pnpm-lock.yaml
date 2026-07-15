@@ -126,6 +126,39 @@ importers:
 
   packages/contracts: {}
 
+  packages/audit-application:
+    dependencies:
+      '@seneve/domain-audit':
+        specifier: workspace:*
+        version: link:../domain/audit
+      '@seneve/domain-organization':
+        specifier: workspace:*
+        version: link:../domain/organization
+      '@seneve/identity-application':
+        specifier: workspace:*
+        version: link:../identity-application
+      '@seneve/tenant-context':
+        specifier: workspace:*
+        version: link:../tenant-context
+
+  packages/audit-persistence:
+    dependencies:
+      '@prisma/client':
+        specifier: ^6.19.3
+        version: 6.19.3(prisma@6.19.3(typescript@5.9.3))(typescript@5.9.3)
+      '@seneve/audit-application':
+        specifier: workspace:*
+        version: link:../audit-application
+      '@seneve/domain-audit':
+        specifier: workspace:*
+        version: link:../domain/audit
+      '@seneve/organization-persistence':
+        specifier: workspace:*
+        version: link:../organization-persistence
+      '@seneve/tenant-context':
+        specifier: workspace:*
+        version: link:../tenant-context
+
   packages/authorization-application:
     dependencies:
       '@seneve/tenant-context':
@@ -133,6 +166,8 @@ importers:
         version: link:../tenant-context
 
   packages/domain/identity: {}
+
+  packages/domain/audit: {}
 
   packages/domain/organization: {}
 
