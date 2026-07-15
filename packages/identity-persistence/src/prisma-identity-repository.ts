@@ -127,6 +127,70 @@ export class PrismaIdentityRepository implements IdentityRepository {
     return emailResult.count === 1 || identityResult.count === 1;
   }
 
+  async replacePasswordCredential(input: {
+    readonly identityId: string;
+    readonly newCredentialId: string;
+    readonly passwordHash: string;
+    readonly replacedAt: Date;
+  }): Promise<boolean> {
+    return inTransaction(this.prisma, async (tx) => {
+      const latestCredential = await tx.credential.findFirst({
+        where: {
+          identityId: input.identityId,
+          type: 'PASSWORD',
+        },
+        orderBy: {
+          version: 'desc',
+        },
+      });
+      const revoked = await tx.credential.updateMany({
+        where: {
+          identityId: input.identityId,
+          type: 'PASSWORD',
+          status: 'ACTIVE',
+        },
+        data: {
+          status: 'REVOKED',
+          revokedAt: input.replacedAt,
+          updatedAt: input.replacedAt,
+          version: {
+            increment: 1,
+          },
+        },
+      });
+
+      if (revoked.count !== 1) {
+        return false;
+      }
+
+      await tx.credential.create({
+        data: {
+          id: input.newCredentialId,
+          identityId: input.identityId,
+          type: 'PASSWORD',
+          secretHash: input.passwordHash,
+          status: 'ACTIVE',
+          version: (latestCredential?.version ?? 0) + 1,
+          createdAt: input.replacedAt,
+          updatedAt: input.replacedAt,
+        },
+      });
+      await tx.identity.update({
+        where: {
+          id: input.identityId,
+        },
+        data: {
+          updatedAt: input.replacedAt,
+          version: {
+            increment: 1,
+          },
+        },
+      });
+
+      return true;
+    });
+  }
+
   async suspendIdentityAndRevokeSessions(identityId: string, suspendedAt: Date): Promise<boolean> {
     const [identityResult] = await inTransaction(this.prisma, (tx) =>
       Promise.all([
@@ -390,6 +454,52 @@ export class PrismaIdentitySessionRepository implements IdentitySessionRepositor
     return result.count;
   }
 
+  async revokeAllSessionsAndRefreshTokensForIdentity(
+    identityId: string,
+    revokedAt: Date,
+    reason: string,
+  ): Promise<{ readonly sessionsRevoked: number; readonly refreshTokensRevoked: number }> {
+    return inTransaction(this.prisma, async (tx) => {
+      const refreshTokens = await tx.refreshToken.updateMany({
+        where: {
+          session: {
+            identityId,
+          },
+          status: {
+            in: ['ACTIVE', 'ROTATED'],
+          },
+        },
+        data: {
+          status: 'REVOKED',
+          revokedAt,
+          version: {
+            increment: 1,
+          },
+        },
+      });
+      const sessions = await tx.session.updateMany({
+        where: {
+          identityId,
+          status: 'ACTIVE',
+        },
+        data: {
+          status: 'REVOKED',
+          revokedAt,
+          revokedReason: reason,
+          updatedAt: revokedAt,
+          version: {
+            increment: 1,
+          },
+        },
+      });
+
+      return {
+        sessionsRevoked: sessions.count,
+        refreshTokensRevoked: refreshTokens.count,
+      };
+    });
+  }
+
   async revokeAllSessionsExcept(
     identityId: string,
     currentSessionId: string,
@@ -591,6 +701,58 @@ export class PrismaIdentityTokenRepository implements IdentityTokenRepository {
     });
   }
 
+  async findLatestPasswordResetToken(
+    identityId: string,
+  ): Promise<PersistedOneTimeTokenReadModel | null> {
+    const token = await this.prisma.passwordResetToken.findFirst({
+      where: {
+        identityId,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    return token ? toOneTimeTokenReadModel(token) : null;
+  }
+
+  async countPasswordResetTokensCreatedSince(input: {
+    readonly identityId: string;
+    readonly since: Date;
+  }): Promise<number> {
+    return this.prisma.passwordResetToken.count({
+      where: {
+        identityId: input.identityId,
+        createdAt: {
+          gte: input.since,
+        },
+      },
+    });
+  }
+
+  async revokePendingPasswordResetTokens(input: {
+    readonly identityId: string;
+    readonly revokedAt: Date;
+    readonly exceptTokenId?: string;
+  }): Promise<number> {
+    const result = await this.prisma.passwordResetToken.updateMany({
+      where: {
+        identityId: input.identityId,
+        status: 'PENDING',
+        tokenId: input.exceptTokenId
+          ? {
+              not: input.exceptTokenId,
+            }
+          : undefined,
+      },
+      data: {
+        status: 'REVOKED',
+      },
+    });
+
+    return result.count;
+  }
+
   async consumePasswordResetToken(
     input: OneTimeTokenConsumptionInput,
   ): Promise<OneTimeTokenConsumptionResult> {
@@ -598,7 +760,9 @@ export class PrismaIdentityTokenRepository implements IdentityTokenRepository {
   }
 }
 
-type OneTimeTokenRecord = Prisma.EmailVerificationTokenGetPayload<Record<string, never>>;
+type OneTimeTokenRecord =
+  | Prisma.EmailVerificationTokenGetPayload<Record<string, never>>
+  | Prisma.PasswordResetTokenGetPayload<Record<string, never>>;
 
 function toOneTimeTokenReadModel(token: OneTimeTokenRecord): PersistedOneTimeTokenReadModel {
   return {

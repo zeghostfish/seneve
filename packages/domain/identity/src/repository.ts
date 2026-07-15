@@ -130,6 +130,12 @@ export interface IdentityRepository {
   findById(identityId: string): Promise<PersistedIdentityReadModel | null>;
   findByNormalizedLoginEmail(normalizedEmail: string): Promise<PersistedIdentityReadModel | null>;
   markPrimaryEmailVerified(identityId: string, verifiedAt: Date): Promise<boolean>;
+  replacePasswordCredential(input: {
+    readonly identityId: string;
+    readonly newCredentialId: string;
+    readonly passwordHash: string;
+    readonly replacedAt: Date;
+  }): Promise<boolean>;
   suspendIdentityAndRevokeSessions(identityId: string, suspendedAt: Date): Promise<boolean>;
 }
 
@@ -147,6 +153,14 @@ export interface IdentitySessionRepository {
     revokedAt: Date,
     reason: string,
   ): Promise<number>;
+  revokeAllSessionsAndRefreshTokensForIdentity(
+    identityId: string,
+    revokedAt: Date,
+    reason: string,
+  ): Promise<{
+    readonly sessionsRevoked: number;
+    readonly refreshTokensRevoked: number;
+  }>;
   revokeAllSessionsExcept(
     identityId: string,
     currentSessionId: string,
@@ -219,6 +233,16 @@ export interface IdentityTokenRepository {
     readonly createdAt: Date;
     readonly expiresAt: Date;
   }): Promise<void>;
+  findLatestPasswordResetToken(identityId: string): Promise<PersistedOneTimeTokenReadModel | null>;
+  countPasswordResetTokensCreatedSince(input: {
+    readonly identityId: string;
+    readonly since: Date;
+  }): Promise<number>;
+  revokePendingPasswordResetTokens(input: {
+    readonly identityId: string;
+    readonly revokedAt: Date;
+    readonly exceptTokenId?: string;
+  }): Promise<number>;
   consumePasswordResetToken(
     input: OneTimeTokenConsumptionInput,
   ): Promise<OneTimeTokenConsumptionResult>;

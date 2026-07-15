@@ -58,6 +58,13 @@ export interface SecurityEventInput {
     | 'SESSION_EXPIRED'
     | 'NEW_DEVICE'
     | 'PASSWORD_CHANGED'
+    | 'PASSWORD_RESET_REQUESTED'
+    | 'PASSWORD_RESET_RESENT'
+    | 'PASSWORD_RESET_COMPLETED'
+    | 'PASSWORD_RESET_FAILED'
+    | 'PASSWORD_RESET_EXPIRED'
+    | 'PASSWORD_CREDENTIAL_REPLACED'
+    | 'SESSIONS_REVOKED_AFTER_PASSWORD_RESET'
     | 'SUSPICIOUS_LOGIN'
     | 'CONCURRENT_LOGIN_LIMIT_REACHED'
     | 'ADMINISTRATOR_SESSION_REVOKED'
@@ -85,6 +92,30 @@ export interface EmailVerificationPolicy {
   readonly maximumRequestsPerWindow: number;
   readonly requestWindowSeconds: number;
   readonly supersedePreviousTokens: boolean;
+  readonly locale: string;
+}
+
+export interface PasswordResetNotificationCommand {
+  readonly recipientEmail: string;
+  readonly template: 'identity.password_reset';
+  readonly locale: string;
+  readonly rawResetToken: string;
+  readonly resetTokenId: string;
+  readonly expiresAt: Date;
+  readonly correlationId: string;
+}
+
+export interface PasswordResetRequestResult {
+  readonly accepted: true;
+  readonly notification: PasswordResetNotificationCommand | null;
+}
+
+export interface PasswordResetPolicy {
+  readonly minimumRequestDelaySeconds: number;
+  readonly maximumRequestsPerWindow: number;
+  readonly requestWindowSeconds: number;
+  readonly supersedePreviousTokens: boolean;
+  readonly preventPasswordReuseCount: number;
   readonly locale: string;
 }
 
