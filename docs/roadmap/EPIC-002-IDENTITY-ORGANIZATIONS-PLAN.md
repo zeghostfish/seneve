@@ -4,7 +4,7 @@
 
 Design approved. Local implementation authorized by project-owner waiver.
 
-Implementation must follow the approved phase order. Phase 3 is limited to authentication application services and supporting cryptographic abstractions with no controllers or REST API.
+Implementation must follow the approved phase order. Phase 4 is limited to Identity security and session management with no controllers or REST API.
 
 ## Objective
 
@@ -111,7 +111,7 @@ Not implemented in Phase 2:
 
 ### Phase 3 - Authentication Application Services
 
-Status: in progress.
+Status: complete.
 
 Implemented locally:
 
@@ -136,6 +136,37 @@ Not implemented in Phase 3:
 - email-verification completion service.
 - password-reset service.
 - organization implementation.
+
+### Phase 4 - Identity Security and Session Management
+
+Status: in progress.
+
+Implemented locally:
+
+- trusted-device persistence model and repository contract.
+- session metadata for device association, last activity, expiration and revocation reason.
+- `ConfigurableSecurityDecisionService` for configurable security-policy evaluation.
+- `SessionManagementService` for listing active sessions, counting sessions, selected revocation, revoke-all-except-current and trusted-device identification.
+- Authentication service integration with security decisions for login, refresh and device creation.
+- expanded identity security-event catalogue for session expiration, new devices, suspicious login, concurrent-session limits, administrator revocation, refresh replay and policy violations.
+
+Concern boundaries:
+
+- Authentication verifies credentials and issues sessions/tokens.
+- Session management lists and revokes sessions and manages trusted devices.
+- Security evaluates policies and records security facts.
+- Authorization remains deferred to the Permission Evaluation phase.
+
+Not implemented in Phase 4:
+
+- browser fingerprint collection.
+- NestJS controllers.
+- HTTP cookies.
+- JWT middleware.
+- REST session-management endpoints.
+- email-verification completion.
+- password reset.
+- Redis-backed API rate limiting.
 
 ## Confirmed V1 Authentication Decisions
 

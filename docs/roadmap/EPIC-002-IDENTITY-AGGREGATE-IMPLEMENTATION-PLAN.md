@@ -2,9 +2,9 @@
 
 ## Status
 
-Phase 3 implementation in progress under the approved Local Implementation Waiver.
+Phase 4 implementation in progress under the approved Local Implementation Waiver.
 
-The waiver authorizes Epic 002 local implementation before GitHub publication. Phase 3 remains limited to authentication application services and supporting cryptographic abstractions. Controllers, public authentication endpoints, organization implementation, tenant RLS, and generic audit persistence remain deferred to later phases.
+The waiver authorizes Epic 002 local implementation before GitHub publication. Phase 4 remains limited to Identity security and session management. Controllers, public authentication endpoints, email verification completion, password reset, organization implementation, tenant RLS, and generic audit persistence remain deferred to later phases.
 
 ## Objective
 
@@ -124,6 +124,7 @@ Phase 2 tables:
 - `email_verification_tokens`
 - `password_reset_tokens`
 - `identity_security_events`
+- `trusted_devices`
 
 Deferred tables:
 
@@ -184,6 +185,13 @@ Phase 3 application-service transaction boundaries:
 - refresh-token rotation delegates the conditional rotation and replay response to the session repository, then issues a replacement access token only after a successful rotation.
 - logout and session revocation are idempotent application commands.
 - identity suspension delegates session revocation to the repository and records an identity-specific security event.
+
+Phase 4 session/security boundaries:
+
+- Security Decision Service owns configurable session and security-policy evaluation.
+- SessionManagementService owns active-session queries, session expiration, selected revocation, revoke-all-except-current, and device identification.
+- AuthenticationService consults the Security Decision Service instead of embedding maximum-session and email-verification policy.
+- Trusted devices are represented by a hashed fingerprint abstraction; browser fingerprint collection remains deferred.
 
 Non-transactional external effects:
 
@@ -321,6 +329,50 @@ Rate-limit boundary:
 - Redis-backed rate limiting and per-IP controls are deferred to the API/security integration phase.
 - Phase 3 must not be described as full brute-force protection.
 
+## Phase 4 Security And Session Management
+
+Application services:
+
+- `ConfigurableSecurityDecisionService`
+- `SessionManagementService`
+
+Security decisions:
+
+- `CanLogin`
+- `CanRefresh`
+- `CanCreateSession`
+- `CanCreateNewDevice`
+- `MustForceLogout`
+- `MustRequireEmailVerification`
+- `MustRotateCredential`
+
+Configurable policy values:
+
+- maximum concurrent sessions
+- session duration
+- refresh-token lifetime
+- password lifetime
+- email-verification requirement
+- forced logout on password change
+- password reuse prevention count
+- trust-new-device behavior
+
+Device model:
+
+- device identifier
+- device display name
+- hashed device fingerprint
+- first seen timestamp
+- last activity timestamp
+- device revocation timestamp
+
+Security concerns remain separated:
+
+- Authentication verifies credentials and issues sessions/tokens.
+- Session management lists and revokes sessions and manages trusted devices.
+- Security evaluates policy and records security facts.
+- Authorization remains deferred to the Permission Evaluation phase.
+
 ## Error Taxonomy
 
 Identity error codes:
@@ -427,6 +479,12 @@ Unit tests:
 - Argon2id hashing and verification adapter
 - token hashing adapter
 - access-token payload exclusions
+- maximum session policy evaluation
+- credential-rotation policy evaluation
+- active-session listing
+- selected and administrator session revocation
+- revoke-all-except-current
+- trusted-device registration and lookup
 
 Integration tests:
 

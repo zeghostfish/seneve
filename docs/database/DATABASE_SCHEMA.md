@@ -259,27 +259,33 @@ Business validations:
 
 ### sessions
 
-Purpose: authenticated refresh-token-backed session records.
+Purpose: authenticated refresh-token-backed session records with optional trusted-device association.
 
 Fields:
 
 - `id`: UUID, primary key
 - `identity_id`: UUID, required
+- `device_id`: UUID, nullable
 - `status`: enum `SessionStatus`
 - `version`: integer, required, default `1`
 - `created_at`: timestamp with time zone
 - `updated_at`: timestamp with time zone
+- `last_activity_at`: timestamp with time zone
 - `expires_at`: timestamp with time zone
 - `revoked_at`: timestamp with time zone, nullable
+- `revoked_reason`: text, nullable
 
 Indexes and constraints:
 
 - primary key `id`
 - `idx_sessions_identity_status`
+- `idx_sessions_device_status`
 - `idx_sessions_expires_at`
 - check `expires_at > created_at`
+- check `last_activity_at >= created_at`
 - check `revoked_at` is present only when `status = REVOKED`
 - foreign key `identity_id` references `identities(id)` with restricted deletion
+- foreign key `device_id` references `trusted_devices(id)` with restricted deletion when present
 
 Lifecycle:
 
@@ -291,6 +297,7 @@ Audit requirements:
 
 - creation emits `SessionCreated`
 - revocation emits `SessionRevoked`
+- expiration emits `SessionExpired`
 
 API exposure:
 
@@ -305,6 +312,60 @@ Business validations:
 
 - no orphan sessions
 - suspension and password reset completion revoke active sessions transactionally
+- maximum concurrent session limits are enforced by the Security Decision Service before session creation
+- expired sessions are marked through session-management application services
+
+### trusted_devices
+
+Purpose: trusted client-device records associated with an identity. This prepares the security model for device-aware sessions without implementing browser fingerprinting.
+
+Fields:
+
+- `id`: UUID, primary key
+- `identity_id`: UUID, required
+- `fingerprint_hash`: text, required
+- `display_name`: text, required
+- `status`: enum `TrustedDeviceStatus`
+- `first_seen_at`: timestamp with time zone
+- `last_activity_at`: timestamp with time zone
+- `revoked_at`: timestamp with time zone, nullable
+
+Indexes and constraints:
+
+- primary key `id`
+- `idx_trusted_devices_identity_status`
+- `idx_trusted_devices_fingerprint_hash`
+- partial unique `uq_trusted_devices_active_identity_fingerprint` on `identity_id`, `fingerprint_hash` where `status = TRUSTED`
+- check `fingerprint_hash` uses an approved non-reversible hash prefix
+- check `last_activity_at >= first_seen_at`
+- check `revoked_at` is present only when `status = REVOKED`
+- foreign key `identity_id` references `identities(id)` with restricted deletion
+
+Lifecycle:
+
+- `TRUSTED`
+- `REVOKED`
+
+Audit requirements:
+
+- new device emits `NewDevice`
+- revoked device emits a session/security event
+- device metadata must not contain raw fingerprinting material
+
+API exposure:
+
+- device metadata may be exposed through authenticated session/device-management endpoints in later API phases
+
+Permissions:
+
+- self may revoke own devices in later API phases
+- administrator device revocation requires privileged policy
+
+Business validations:
+
+- browser fingerprint collection is not implemented in Phase 4
+- only a hashed device fingerprint is persisted
+- revoked devices cannot create new sessions
 
 ### refresh_tokens
 
@@ -506,6 +567,7 @@ Permissions:
 Business validations:
 
 - events are security history, not authorization source of truth
+- Phase 4 event types include `SESSION_EXPIRED`, `NEW_DEVICE`, `SUSPICIOUS_LOGIN`, `CONCURRENT_LOGIN_LIMIT_REACHED`, `ADMINISTRATOR_SESSION_REVOKED`, and `SECURITY_POLICY_VIOLATION`
 
 ### organizations
 
