@@ -42,6 +42,19 @@ export interface AccessTokenIssuer {
   issue(claims: AccessTokenClaims): Promise<string>;
 }
 
+export interface VerifiedAccessTokenClaims {
+  readonly sub: string;
+  readonly identityId: string;
+  readonly sessionId: string;
+  readonly tokenVersion: number;
+  readonly issuedAt: Date;
+  readonly expiresAt: Date;
+}
+
+export interface AccessTokenVerifier {
+  verify(token: string): Promise<VerifiedAccessTokenClaims>;
+}
+
 export interface SecurityEventInput {
   readonly identityId: string | null;
   readonly eventType:

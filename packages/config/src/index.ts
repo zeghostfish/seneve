@@ -1,4 +1,9 @@
-const requiredKeys = ['DATABASE_URL', 'REDIS_URL'] as const;
+const requiredKeys = [
+  'DATABASE_URL',
+  'REDIS_URL',
+  'JWT_ACCESS_TOKEN_SECRET',
+  'JWT_REFRESH_TOKEN_SECRET',
+] as const;
 
 export interface FoundationConfig {
   nodeEnv: string;
@@ -8,6 +13,12 @@ export interface FoundationConfig {
   workerHealthPort: number;
   databaseUrl: string;
   redisUrl: string;
+  accessTokenSecret: string;
+  refreshTokenSecret: string;
+  accessTokenIssuer: string;
+  accessTokenAudience: string;
+  corsOrigins: readonly string[];
+  authCookieSecure: boolean;
 }
 
 export function loadFoundationConfig(env: NodeJS.ProcessEnv = process.env): FoundationConfig {
@@ -25,6 +36,12 @@ export function loadFoundationConfig(env: NodeJS.ProcessEnv = process.env): Foun
     workerHealthPort: parsePort(env.WORKER_HEALTH_PORT, 3002),
     databaseUrl: env.DATABASE_URL!,
     redisUrl: env.REDIS_URL!,
+    accessTokenSecret: parseSecret(env.JWT_ACCESS_TOKEN_SECRET, 'JWT_ACCESS_TOKEN_SECRET'),
+    refreshTokenSecret: parseSecret(env.JWT_REFRESH_TOKEN_SECRET, 'JWT_REFRESH_TOKEN_SECRET'),
+    accessTokenIssuer: env.JWT_ACCESS_TOKEN_ISSUER ?? 'seneve-api',
+    accessTokenAudience: env.JWT_ACCESS_TOKEN_AUDIENCE ?? 'seneve-clients',
+    corsOrigins: parseCorsOrigins(env.CORS_ORIGINS),
+    authCookieSecure: parseBoolean(env.AUTH_COOKIE_SECURE, env.NODE_ENV === 'production'),
   };
 }
 
@@ -40,4 +57,31 @@ function parsePort(value: string | undefined, fallback: number): number {
   }
 
   return parsed;
+}
+
+function parseSecret(value: string | undefined, key: string): string {
+  if (!value || value.length < 16) {
+    throw new Error(`${key} must contain at least 16 characters.`);
+  }
+
+  return value;
+}
+
+function parseCorsOrigins(value: string | undefined): readonly string[] {
+  if (!value) {
+    return [];
+  }
+
+  return value
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter((origin) => origin.length > 0);
+}
+
+function parseBoolean(value: string | undefined, fallback: boolean): boolean {
+  if (!value) {
+    return fallback;
+  }
+
+  return value === 'true';
 }

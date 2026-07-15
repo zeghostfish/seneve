@@ -7,6 +7,8 @@ describe('loadFoundationConfig', () => {
     const config = loadFoundationConfig({
       DATABASE_URL: 'postgresql://seneve:seneve@localhost:5432/seneve',
       REDIS_URL: 'redis://localhost:6379',
+      JWT_ACCESS_TOKEN_SECRET: 'test-access-token-secret',
+      JWT_REFRESH_TOKEN_SECRET: 'test-refresh-token-secret',
     });
 
     expect(config.nodeEnv).toBe('development');
@@ -16,7 +18,7 @@ describe('loadFoundationConfig', () => {
 
   it('rejects missing required variables', () => {
     expect(() => loadFoundationConfig({})).toThrow(
-      'Missing required environment variables: DATABASE_URL, REDIS_URL',
+      'Missing required environment variables: DATABASE_URL, REDIS_URL, JWT_ACCESS_TOKEN_SECRET, JWT_REFRESH_TOKEN_SECRET',
     );
   });
 });

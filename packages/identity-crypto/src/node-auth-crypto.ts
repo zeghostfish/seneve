@@ -4,10 +4,12 @@ import { promisify } from 'node:util';
 import type {
   AccessTokenClaims,
   AccessTokenIssuer,
+  AccessTokenVerifier,
   GeneratedToken,
   PasswordHasher,
   TokenGenerator,
   TokenHasher,
+  VerifiedAccessTokenClaims,
 } from '@seneve/identity-application';
 
 const argon2Async = promisify(argon2);
@@ -116,6 +118,55 @@ export class HmacAccessTokenIssuer implements AccessTokenIssuer {
   }
 }
 
+export class HmacAccessTokenVerifier implements AccessTokenVerifier {
+  constructor(private readonly config: HmacAccessTokenIssuerConfig) {}
+
+  async verify(token: string): Promise<VerifiedAccessTokenClaims> {
+    const parts = token.split('.');
+
+    if (parts.length !== 3) {
+      throw new Error('Invalid access token format.');
+    }
+
+    const [header, payload, signature] = parts as [string, string, string];
+    const expectedSignature = createHmac('sha256', this.config.secret)
+      .update(`${header}.${payload}`)
+      .digest('base64url');
+
+    if (!safeEqual(signature, expectedSignature)) {
+      throw new Error('Invalid access token signature.');
+    }
+
+    const decodedHeader = decodeJson(header);
+    const decodedPayload = decodeJson(payload);
+
+    if (decodedHeader.alg !== 'HS256' || decodedHeader.typ !== 'JWT') {
+      throw new Error('Unsupported access token header.');
+    }
+
+    if (decodedPayload.iss !== this.config.issuer || decodedPayload.aud !== this.config.audience) {
+      throw new Error('Invalid access token audience.');
+    }
+
+    const expiresAtSeconds = requireNumber(decodedPayload.exp, 'exp');
+    const issuedAtSeconds = requireNumber(decodedPayload.iat, 'iat');
+    const nowSeconds = Math.floor(Date.now() / 1000);
+
+    if (expiresAtSeconds <= nowSeconds) {
+      throw new Error('Access token expired.');
+    }
+
+    return {
+      sub: requireString(decodedPayload.sub, 'sub'),
+      identityId: requireString(decodedPayload.identity_id, 'identity_id'),
+      sessionId: requireString(decodedPayload.session_id, 'session_id'),
+      tokenVersion: requireNumber(decodedPayload.token_version, 'token_version'),
+      issuedAt: new Date(issuedAtSeconds * 1000),
+      expiresAt: new Date(expiresAtSeconds * 1000),
+    };
+  }
+}
+
 export const defaultArgon2idConfig: Argon2idPasswordHasherConfig = {
   memoryKiB: 65_536,
   passes: 3,
@@ -166,4 +217,37 @@ function parseEncodedArgon2idHash(hash: string): ParsedArgon2idHash {
 
 function encodeJson(value: Record<string, unknown>): string {
   return Buffer.from(JSON.stringify(value), 'utf8').toString('base64url');
+}
+
+function decodeJson(value: string): Record<string, unknown> {
+  const parsed = JSON.parse(Buffer.from(value, 'base64url').toString('utf8')) as unknown;
+
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+    throw new Error('Invalid encoded JSON object.');
+  }
+
+  return parsed as Record<string, unknown>;
+}
+
+function requireString(value: unknown, field: string): string {
+  if (typeof value !== 'string' || value.length === 0) {
+    throw new Error(`Invalid access token claim: ${field}.`);
+  }
+
+  return value;
+}
+
+function requireNumber(value: unknown, field: string): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    throw new Error(`Invalid access token claim: ${field}.`);
+  }
+
+  return value;
+}
+
+function safeEqual(left: string, right: string): boolean {
+  const leftBuffer = Buffer.from(left);
+  const rightBuffer = Buffer.from(right);
+
+  return leftBuffer.length === rightBuffer.length && timingSafeEqual(leftBuffer, rightBuffer);
 }

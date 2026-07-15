@@ -5,6 +5,9 @@ import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { loadFoundationConfig } from '@seneve/config';
 import { createStructuredLogEntry } from '@seneve/shared';
+import cookieParser from 'cookie-parser';
+import type { NextFunction, Request, Response } from 'express';
+import helmet from 'helmet';
 
 import { AppModule } from './app.module.js';
 import { correlationMiddleware } from './correlation.middleware.js';
@@ -15,7 +18,20 @@ async function bootstrap(): Promise<void> {
     bufferLogs: true,
   });
 
+  app.use(helmet());
+  app.use(cookieParser());
   app.use(correlationMiddleware);
+  app.use((request: Request, response: Response, next: NextFunction) => {
+    if (request.path.includes('/auth')) {
+      response.setHeader('Cache-Control', 'no-store');
+    }
+
+    next();
+  });
+  app.enableCors({
+    origin: config.corsOrigins.length > 0 ? config.corsOrigins : false,
+    credentials: config.corsOrigins.length > 0,
+  });
   app.setGlobalPrefix('api/v1');
   app.useGlobalPipes(
     new ValidationPipe({
