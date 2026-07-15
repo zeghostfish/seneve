@@ -18,6 +18,7 @@ import type {
   OneTimeTokenConsumptionInput,
   OneTimeTokenConsumptionResult,
   PersistedIdentityReadModel,
+  PersistedOneTimeTokenReadModel,
   PersistedIdentityRegistration,
   PersistedSessionReadModel,
   PersistedTrustedDeviceReadModel,
@@ -512,6 +513,18 @@ class InMemoryTokenRepository implements IdentityTokenRepository {
     input: Parameters<IdentityTokenRepository['createEmailVerificationToken']>[0],
   ): Promise<void> {
     this.emailVerificationTokens.push(input);
+  }
+
+  async findLatestEmailVerificationToken(): Promise<PersistedOneTimeTokenReadModel | null> {
+    return null;
+  }
+
+  async countEmailVerificationTokensCreatedSince(): Promise<number> {
+    return 0;
+  }
+
+  async revokePendingEmailVerificationTokens(): Promise<number> {
+    return 0;
   }
 
   async consumeEmailVerificationToken(): Promise<OneTimeTokenConsumptionResult> {
