@@ -9,8 +9,10 @@ import type {
   PersistedIdentityReadModel,
   PersistedIdentityRegistration,
   PersistedSessionReadModel,
+  PersistedTrustedDeviceReadModel,
   RefreshTokenRotationResult,
   RotateRefreshTokenInput,
+  TrustedDeviceRepository,
 } from '@seneve/domain-identity';
 
 type PrismaExecutor = PrismaClient | Prisma.TransactionClient;
@@ -172,9 +174,11 @@ export class PrismaIdentitySessionRepository implements IdentitySessionRepositor
       data: {
         id: input.sessionId,
         identityId: input.identityId,
+        deviceId: input.deviceId ?? null,
         status: 'ACTIVE',
         createdAt: input.issuedAt,
         updatedAt: input.issuedAt,
+        lastActivityAt: input.issuedAt,
         expiresAt: input.sessionExpiresAt,
         refreshTokens: {
           create: {
@@ -195,19 +199,47 @@ export class PrismaIdentitySessionRepository implements IdentitySessionRepositor
       where: {
         id: sessionId,
       },
+      include: {
+        device: true,
+      },
     });
 
-    return session
-      ? {
-          id: session.id,
-          identityId: session.identityId,
-          status: session.status,
-          version: session.version,
-          createdAt: session.createdAt,
-          expiresAt: session.expiresAt,
-          revokedAt: session.revokedAt,
-        }
-      : null;
+    return session ? toSessionReadModel(session) : null;
+  }
+
+  async listActiveSessions(
+    identityId: string,
+    now: Date,
+  ): Promise<readonly PersistedSessionReadModel[]> {
+    const sessions = await this.prisma.session.findMany({
+      where: {
+        identityId,
+        status: 'ACTIVE',
+        expiresAt: {
+          gt: now,
+        },
+      },
+      include: {
+        device: true,
+      },
+      orderBy: {
+        lastActivityAt: 'desc',
+      },
+    });
+
+    return sessions.map(toSessionReadModel);
+  }
+
+  async countActiveSessions(identityId: string, now: Date): Promise<number> {
+    return this.prisma.session.count({
+      where: {
+        identityId,
+        status: 'ACTIVE',
+        expiresAt: {
+          gt: now,
+        },
+      },
+    });
   }
 
   async rotateRefreshToken(input: RotateRefreshTokenInput): Promise<RefreshTokenRotationResult> {
@@ -274,7 +306,46 @@ export class PrismaIdentitySessionRepository implements IdentitySessionRepositor
     });
   }
 
-  async revokeSession(sessionId: string, revokedAt: Date): Promise<boolean> {
+  async touchSession(sessionId: string, lastActivityAt: Date): Promise<boolean> {
+    const result = await this.prisma.session.updateMany({
+      where: {
+        id: sessionId,
+        status: 'ACTIVE',
+      },
+      data: {
+        lastActivityAt,
+        updatedAt: lastActivityAt,
+        version: {
+          increment: 1,
+        },
+      },
+    });
+
+    return result.count === 1;
+  }
+
+  async expireSessions(identityId: string, now: Date): Promise<number> {
+    const result = await this.prisma.session.updateMany({
+      where: {
+        identityId,
+        status: 'ACTIVE',
+        expiresAt: {
+          lte: now,
+        },
+      },
+      data: {
+        status: 'EXPIRED',
+        updatedAt: now,
+        version: {
+          increment: 1,
+        },
+      },
+    });
+
+    return result.count;
+  }
+
+  async revokeSession(sessionId: string, revokedAt: Date, reason: string): Promise<boolean> {
     const result = await this.prisma.session.updateMany({
       where: {
         id: sessionId,
@@ -283,6 +354,7 @@ export class PrismaIdentitySessionRepository implements IdentitySessionRepositor
       data: {
         status: 'REVOKED',
         revokedAt,
+        revokedReason: reason,
         updatedAt: revokedAt,
         version: {
           increment: 1,
@@ -293,7 +365,11 @@ export class PrismaIdentitySessionRepository implements IdentitySessionRepositor
     return result.count === 1;
   }
 
-  async revokeAllSessionsForIdentity(identityId: string, revokedAt: Date): Promise<number> {
+  async revokeAllSessionsForIdentity(
+    identityId: string,
+    revokedAt: Date,
+    reason: string,
+  ): Promise<number> {
     const result = await this.prisma.session.updateMany({
       where: {
         identityId,
@@ -302,6 +378,7 @@ export class PrismaIdentitySessionRepository implements IdentitySessionRepositor
       data: {
         status: 'REVOKED',
         revokedAt,
+        revokedReason: reason,
         updatedAt: revokedAt,
         version: {
           increment: 1,
@@ -310,6 +387,103 @@ export class PrismaIdentitySessionRepository implements IdentitySessionRepositor
     });
 
     return result.count;
+  }
+
+  async revokeAllSessionsExcept(
+    identityId: string,
+    currentSessionId: string,
+    revokedAt: Date,
+    reason: string,
+  ): Promise<number> {
+    const result = await this.prisma.session.updateMany({
+      where: {
+        identityId,
+        id: {
+          not: currentSessionId,
+        },
+        status: 'ACTIVE',
+      },
+      data: {
+        status: 'REVOKED',
+        revokedAt,
+        revokedReason: reason,
+        updatedAt: revokedAt,
+        version: {
+          increment: 1,
+        },
+      },
+    });
+
+    return result.count;
+  }
+}
+
+export class PrismaTrustedDeviceRepository implements TrustedDeviceRepository {
+  constructor(private readonly prisma: PrismaExecutor) {}
+
+  async findTrustedDevice(
+    identityId: string,
+    fingerprintHash: string,
+  ): Promise<PersistedTrustedDeviceReadModel | null> {
+    const device = await this.prisma.trustedDevice.findFirst({
+      where: {
+        identityId,
+        fingerprintHash,
+      },
+    });
+
+    return device ? toTrustedDeviceReadModel(device) : null;
+  }
+
+  async createTrustedDevice(input: {
+    readonly id: string;
+    readonly identityId: string;
+    readonly fingerprintHash: string;
+    readonly displayName: string;
+    readonly firstSeenAt: Date;
+  }): Promise<PersistedTrustedDeviceReadModel> {
+    const device = await this.prisma.trustedDevice.create({
+      data: {
+        id: input.id,
+        identityId: input.identityId,
+        fingerprintHash: input.fingerprintHash,
+        displayName: input.displayName,
+        status: 'TRUSTED',
+        firstSeenAt: input.firstSeenAt,
+        lastActivityAt: input.firstSeenAt,
+      },
+    });
+
+    return toTrustedDeviceReadModel(device);
+  }
+
+  async touchTrustedDevice(deviceId: string, lastActivityAt: Date): Promise<boolean> {
+    const result = await this.prisma.trustedDevice.updateMany({
+      where: {
+        id: deviceId,
+        status: 'TRUSTED',
+      },
+      data: {
+        lastActivityAt,
+      },
+    });
+
+    return result.count === 1;
+  }
+
+  async revokeTrustedDevice(deviceId: string, revokedAt: Date): Promise<boolean> {
+    const result = await this.prisma.trustedDevice.updateMany({
+      where: {
+        id: deviceId,
+        status: 'TRUSTED',
+      },
+      data: {
+        status: 'REVOKED',
+        revokedAt,
+      },
+    });
+
+    return result.count === 1;
   }
 }
 
@@ -379,6 +553,7 @@ export class PrismaIdentityUnitOfWork {
       readonly identities: PrismaIdentityRepository;
       readonly sessions: PrismaIdentitySessionRepository;
       readonly tokens: PrismaIdentityTokenRepository;
+      readonly devices: PrismaTrustedDeviceRepository;
     }) => Promise<T>,
   ): Promise<T> {
     return this.prisma.$transaction((tx) =>
@@ -386,9 +561,41 @@ export class PrismaIdentityUnitOfWork {
         identities: new PrismaIdentityRepository(tx),
         sessions: new PrismaIdentitySessionRepository(tx),
         tokens: new PrismaIdentityTokenRepository(tx),
+        devices: new PrismaTrustedDeviceRepository(tx),
       }),
     );
   }
+}
+
+type SessionWithDevice = Prisma.SessionGetPayload<{ include: { device: true } }>;
+type TrustedDeviceRecord = Prisma.TrustedDeviceGetPayload<Record<string, never>>;
+
+function toSessionReadModel(session: SessionWithDevice): PersistedSessionReadModel {
+  return {
+    id: session.id,
+    identityId: session.identityId,
+    status: session.status,
+    version: session.version,
+    createdAt: session.createdAt,
+    lastActivityAt: session.lastActivityAt,
+    expiresAt: session.expiresAt,
+    revokedAt: session.revokedAt,
+    revokedReason: session.revokedReason,
+    device: session.device ? toTrustedDeviceReadModel(session.device) : null,
+  };
+}
+
+function toTrustedDeviceReadModel(device: TrustedDeviceRecord): PersistedTrustedDeviceReadModel {
+  return {
+    id: device.id,
+    identityId: device.identityId,
+    fingerprintHash: device.fingerprintHash,
+    displayName: device.displayName,
+    status: device.status,
+    firstSeenAt: device.firstSeenAt,
+    lastActivityAt: device.lastActivityAt,
+    revokedAt: device.revokedAt,
+  };
 }
 
 function toReadModel(record: IdentityWithChildren): PersistedIdentityReadModel {
@@ -571,6 +778,7 @@ async function revokeRefreshTokenFamily(
       data: {
         status: 'REVOKED',
         revokedAt,
+        revokedReason: 'REFRESH_TOKEN_REUSE',
         version: {
           increment: 1,
         },

@@ -237,6 +237,7 @@ async function cleanupIdentityTables(): Promise<void> {
   await prisma.emailVerificationToken.deleteMany();
   await prisma.refreshToken.deleteMany();
   await prisma.session.deleteMany();
+  await prisma.trustedDevice.deleteMany();
   await prisma.credential.deleteMany();
   await prisma.identityEmail.deleteMany();
   await prisma.user.deleteMany();

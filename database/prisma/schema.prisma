@@ -29,6 +29,11 @@ enum SessionStatus {
   EXPIRED
 }
 
+enum TrustedDeviceStatus {
+  TRUSTED
+  REVOKED
+}
+
 enum RefreshTokenStatus {
   ACTIVE
   ROTATED
@@ -56,6 +61,12 @@ enum IdentitySecurityEventType {
   REFRESH_TOKEN_ROTATED
   REFRESH_TOKEN_REUSE_DETECTED
   IDENTITY_SUSPENDED
+  SESSION_EXPIRED
+  NEW_DEVICE
+  SUSPICIOUS_LOGIN
+  CONCURRENT_LOGIN_LIMIT_REACHED
+  ADMINISTRATOR_SESSION_REVOKED
+  SECURITY_POLICY_VIOLATION
 }
 
 model Identity {
@@ -70,6 +81,7 @@ model Identity {
   user                    User?
   emails                  IdentityEmail[]
   credentials             Credential[]
+  trustedDevices          TrustedDevice[]
   sessions                Session[]
   emailVerificationTokens EmailVerificationToken[]
   passwordResetTokens     PasswordResetToken[]
@@ -123,19 +135,41 @@ model Credential {
   @@map("credentials")
 }
 
+model TrustedDevice {
+  id              String              @id @default(uuid()) @db.Uuid
+  identityId      String              @map("identity_id") @db.Uuid
+  fingerprintHash String              @map("fingerprint_hash")
+  displayName     String              @map("display_name")
+  status          TrustedDeviceStatus
+  firstSeenAt     DateTime            @map("first_seen_at") @db.Timestamptz(6)
+  lastActivityAt  DateTime            @map("last_activity_at") @db.Timestamptz(6)
+  revokedAt       DateTime?           @map("revoked_at") @db.Timestamptz(6)
+  identity        Identity            @relation(fields: [identityId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  sessions        Session[]
+
+  @@index([identityId, status], map: "idx_trusted_devices_identity_status")
+  @@index([fingerprintHash], map: "idx_trusted_devices_fingerprint_hash")
+  @@map("trusted_devices")
+}
+
 model Session {
-  id            String         @id @default(uuid()) @db.Uuid
-  identityId    String         @map("identity_id") @db.Uuid
-  status        SessionStatus
-  version       Int            @default(1)
-  createdAt     DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt     DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
-  expiresAt     DateTime       @map("expires_at") @db.Timestamptz(6)
-  revokedAt     DateTime?      @map("revoked_at") @db.Timestamptz(6)
-  identity      Identity       @relation(fields: [identityId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  refreshTokens RefreshToken[]
+  id             String         @id @default(uuid()) @db.Uuid
+  identityId     String         @map("identity_id") @db.Uuid
+  deviceId       String?        @map("device_id") @db.Uuid
+  status         SessionStatus
+  version        Int            @default(1)
+  createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+  lastActivityAt DateTime       @map("last_activity_at") @db.Timestamptz(6)
+  expiresAt      DateTime       @map("expires_at") @db.Timestamptz(6)
+  revokedAt      DateTime?      @map("revoked_at") @db.Timestamptz(6)
+  revokedReason  String?        @map("revoked_reason")
+  identity       Identity       @relation(fields: [identityId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  device         TrustedDevice? @relation(fields: [deviceId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  refreshTokens  RefreshToken[]
 
   @@index([identityId, status], map: "idx_sessions_identity_status")
+  @@index([deviceId, status], map: "idx_sessions_device_status")
   @@index([expiresAt], map: "idx_sessions_expires_at")
   @@map("sessions")
 }

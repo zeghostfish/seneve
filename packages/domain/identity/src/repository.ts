@@ -45,6 +45,7 @@ export interface PersistedIdentityReadModel {
 export interface CreateSessionWithRefreshTokenInput {
   readonly sessionId: string;
   readonly identityId: string;
+  readonly deviceId?: string | null;
   readonly refreshTokenId: string;
   readonly refreshTokenFamilyId: string;
   readonly refreshTokenHash: string;
@@ -59,8 +60,11 @@ export interface PersistedSessionReadModel {
   readonly status: SessionStatus;
   readonly version: number;
   readonly createdAt: Date;
+  readonly lastActivityAt: Date;
   readonly expiresAt: Date;
   readonly revokedAt: Date | null;
+  readonly revokedReason: string | null;
+  readonly device: PersistedTrustedDeviceReadModel | null;
 }
 
 export interface RotateRefreshTokenInput {
@@ -122,9 +126,55 @@ export interface IdentityRepository {
 export interface IdentitySessionRepository {
   createSessionWithRefreshToken(input: CreateSessionWithRefreshTokenInput): Promise<void>;
   findSessionById(sessionId: string): Promise<PersistedSessionReadModel | null>;
+  listActiveSessions(identityId: string, now: Date): Promise<readonly PersistedSessionReadModel[]>;
+  countActiveSessions(identityId: string, now: Date): Promise<number>;
   rotateRefreshToken(input: RotateRefreshTokenInput): Promise<RefreshTokenRotationResult>;
-  revokeSession(sessionId: string, revokedAt: Date): Promise<boolean>;
-  revokeAllSessionsForIdentity(identityId: string, revokedAt: Date): Promise<number>;
+  touchSession(sessionId: string, lastActivityAt: Date): Promise<boolean>;
+  expireSessions(identityId: string, now: Date): Promise<number>;
+  revokeSession(sessionId: string, revokedAt: Date, reason: string): Promise<boolean>;
+  revokeAllSessionsForIdentity(
+    identityId: string,
+    revokedAt: Date,
+    reason: string,
+  ): Promise<number>;
+  revokeAllSessionsExcept(
+    identityId: string,
+    currentSessionId: string,
+    revokedAt: Date,
+    reason: string,
+  ): Promise<number>;
+}
+
+export interface DeviceFingerprint {
+  readonly hash: string;
+  readonly displayName: string;
+}
+
+export interface PersistedTrustedDeviceReadModel {
+  readonly id: string;
+  readonly identityId: string;
+  readonly fingerprintHash: string;
+  readonly displayName: string;
+  readonly status: 'TRUSTED' | 'REVOKED';
+  readonly firstSeenAt: Date;
+  readonly lastActivityAt: Date;
+  readonly revokedAt: Date | null;
+}
+
+export interface TrustedDeviceRepository {
+  findTrustedDevice(
+    identityId: string,
+    fingerprintHash: string,
+  ): Promise<PersistedTrustedDeviceReadModel | null>;
+  createTrustedDevice(input: {
+    readonly id: string;
+    readonly identityId: string;
+    readonly fingerprintHash: string;
+    readonly displayName: string;
+    readonly firstSeenAt: Date;
+  }): Promise<PersistedTrustedDeviceReadModel>;
+  touchTrustedDevice(deviceId: string, lastActivityAt: Date): Promise<boolean>;
+  revokeTrustedDevice(deviceId: string, revokedAt: Date): Promise<boolean>;
 }
 
 export interface IdentityTokenRepository {

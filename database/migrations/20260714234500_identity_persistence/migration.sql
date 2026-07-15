@@ -14,13 +14,16 @@ CREATE TYPE "CredentialStatus" AS ENUM ('ACTIVE', 'REVOKED');
 CREATE TYPE "SessionStatus" AS ENUM ('ACTIVE', 'REVOKED', 'EXPIRED');
 
 -- CreateEnum
+CREATE TYPE "TrustedDeviceStatus" AS ENUM ('TRUSTED', 'REVOKED');
+
+-- CreateEnum
 CREATE TYPE "RefreshTokenStatus" AS ENUM ('ACTIVE', 'ROTATED', 'REVOKED', 'EXPIRED');
 
 -- CreateEnum
 CREATE TYPE "OneTimeTokenStatus" AS ENUM ('PENDING', 'CONSUMED', 'REVOKED', 'EXPIRED');
 
 -- CreateEnum
-CREATE TYPE "IdentitySecurityEventType" AS ENUM ('IDENTITY_REGISTERED', 'EMAIL_VERIFIED', 'PASSWORD_CHANGED', 'PASSWORD_RESET_REQUESTED', 'PASSWORD_RESET_COMPLETED', 'LOGIN_SUCCEEDED', 'LOGIN_FAILED', 'SESSION_CREATED', 'SESSION_REVOKED', 'REFRESH_TOKEN_ROTATED', 'REFRESH_TOKEN_REUSE_DETECTED', 'IDENTITY_SUSPENDED');
+CREATE TYPE "IdentitySecurityEventType" AS ENUM ('IDENTITY_REGISTERED', 'EMAIL_VERIFIED', 'PASSWORD_CHANGED', 'PASSWORD_RESET_REQUESTED', 'PASSWORD_RESET_COMPLETED', 'LOGIN_SUCCEEDED', 'LOGIN_FAILED', 'SESSION_CREATED', 'SESSION_REVOKED', 'REFRESH_TOKEN_ROTATED', 'REFRESH_TOKEN_REUSE_DETECTED', 'IDENTITY_SUSPENDED', 'SESSION_EXPIRED', 'NEW_DEVICE', 'SUSPICIOUS_LOGIN', 'CONCURRENT_LOGIN_LIMIT_REACHED', 'ADMINISTRATOR_SESSION_REVOKED', 'SECURITY_POLICY_VIOLATION');
 
 -- CreateTable
 CREATE TABLE "identities" (
@@ -77,15 +80,32 @@ CREATE TABLE "credentials" (
 );
 
 -- CreateTable
+CREATE TABLE "trusted_devices" (
+    "id" UUID NOT NULL,
+    "identity_id" UUID NOT NULL,
+    "fingerprint_hash" TEXT NOT NULL,
+    "display_name" TEXT NOT NULL,
+    "status" "TrustedDeviceStatus" NOT NULL,
+    "first_seen_at" TIMESTAMPTZ(6) NOT NULL,
+    "last_activity_at" TIMESTAMPTZ(6) NOT NULL,
+    "revoked_at" TIMESTAMPTZ(6),
+
+    CONSTRAINT "trusted_devices_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "sessions" (
     "id" UUID NOT NULL,
     "identity_id" UUID NOT NULL,
+    "device_id" UUID,
     "status" "SessionStatus" NOT NULL,
     "version" INTEGER NOT NULL DEFAULT 1,
     "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMPTZ(6) NOT NULL,
+    "last_activity_at" TIMESTAMPTZ(6) NOT NULL,
     "expires_at" TIMESTAMPTZ(6) NOT NULL,
     "revoked_at" TIMESTAMPTZ(6),
+    "revoked_reason" TEXT,
 
     CONSTRAINT "sessions_pkey" PRIMARY KEY ("id")
 );
@@ -165,7 +185,16 @@ CREATE INDEX "idx_identity_emails_normalized_email" ON "identity_emails"("normal
 CREATE INDEX "idx_credentials_identity_type_status" ON "credentials"("identity_id", "type", "status");
 
 -- CreateIndex
+CREATE INDEX "idx_trusted_devices_identity_status" ON "trusted_devices"("identity_id", "status");
+
+-- CreateIndex
+CREATE INDEX "idx_trusted_devices_fingerprint_hash" ON "trusted_devices"("fingerprint_hash");
+
+-- CreateIndex
 CREATE INDEX "idx_sessions_identity_status" ON "sessions"("identity_id", "status");
+
+-- CreateIndex
+CREATE INDEX "idx_sessions_device_status" ON "sessions"("device_id", "status");
 
 -- CreateIndex
 CREATE INDEX "idx_sessions_expires_at" ON "sessions"("expires_at");
@@ -225,6 +254,10 @@ CREATE UNIQUE INDEX "uq_credentials_active_identity_type"
 ON "credentials"("identity_id", "type")
 WHERE "status" = 'ACTIVE';
 
+CREATE UNIQUE INDEX "uq_trusted_devices_active_identity_fingerprint"
+ON "trusted_devices"("identity_id", "fingerprint_hash")
+WHERE "status" = 'TRUSTED';
+
 -- Domain invariant checks.
 ALTER TABLE "identities"
 ADD CONSTRAINT "chk_identities_normalized_login_email"
@@ -246,9 +279,25 @@ ALTER TABLE "credentials"
 ADD CONSTRAINT "chk_credentials_revoked_at"
 CHECK (("status" = 'REVOKED' AND "revoked_at" IS NOT NULL) OR ("status" <> 'REVOKED' AND "revoked_at" IS NULL));
 
+ALTER TABLE "trusted_devices"
+ADD CONSTRAINT "chk_trusted_devices_hash_format"
+CHECK ("fingerprint_hash" ~ '^(sha256|hmac-sha256):[A-Za-z0-9+/=._:-]{32,}$');
+
+ALTER TABLE "trusted_devices"
+ADD CONSTRAINT "chk_trusted_devices_revoked_at"
+CHECK (("status" = 'REVOKED' AND "revoked_at" IS NOT NULL) OR ("status" <> 'REVOKED' AND "revoked_at" IS NULL));
+
+ALTER TABLE "trusted_devices"
+ADD CONSTRAINT "chk_trusted_devices_activity_after_first_seen"
+CHECK ("last_activity_at" >= "first_seen_at");
+
 ALTER TABLE "sessions"
 ADD CONSTRAINT "chk_sessions_expiry_after_creation"
 CHECK ("expires_at" > "created_at");
+
+ALTER TABLE "sessions"
+ADD CONSTRAINT "chk_sessions_activity_after_creation"
+CHECK ("last_activity_at" >= "created_at");
 
 ALTER TABLE "sessions"
 ADD CONSTRAINT "chk_sessions_revoked_at"
@@ -300,7 +349,13 @@ ALTER TABLE "identity_emails" ADD CONSTRAINT "identity_emails_identity_id_fkey" 
 ALTER TABLE "credentials" ADD CONSTRAINT "credentials_identity_id_fkey" FOREIGN KEY ("identity_id") REFERENCES "identities"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "trusted_devices" ADD CONSTRAINT "trusted_devices_identity_id_fkey" FOREIGN KEY ("identity_id") REFERENCES "identities"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "sessions" ADD CONSTRAINT "sessions_identity_id_fkey" FOREIGN KEY ("identity_id") REFERENCES "identities"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "sessions" ADD CONSTRAINT "sessions_device_id_fkey" FOREIGN KEY ("device_id") REFERENCES "trusted_devices"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "refresh_tokens" ADD CONSTRAINT "refresh_tokens_session_id_fkey" FOREIGN KEY ("session_id") REFERENCES "sessions"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
