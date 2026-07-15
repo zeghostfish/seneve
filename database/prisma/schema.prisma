@@ -78,23 +78,56 @@ enum IdentitySecurityEventType {
   SECURITY_POLICY_VIOLATION
 }
 
+enum OrganizationStatus {
+  DRAFT
+  ACTIVE
+  SUSPENDED
+  CLOSED
+  ARCHIVED
+}
+
+enum OrganizationMembershipStatus {
+  ACTIVE
+  SUSPENDED
+  REMOVED
+}
+
+enum OrganizationRole {
+  OWNER
+  ADMINISTRATOR
+  EVENT_MANAGER
+  FINANCE_MANAGER
+  CONTENT_MANAGER
+  VIEWER
+  AUDITOR
+}
+
+enum OrganizationInvitationStatus {
+  PENDING
+  ACCEPTED
+  REVOKED
+  EXPIRED
+}
+
 model Identity {
-  id                      String                   @id @default(uuid()) @db.Uuid
-  status                  IdentityStatus
-  normalizedLoginEmail    String                   @map("normalized_login_email")
-  version                 Int                      @default(1)
-  createdAt               DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt               DateTime                 @updatedAt @map("updated_at") @db.Timestamptz(6)
-  suspendedAt             DateTime?                @map("suspended_at") @db.Timestamptz(6)
-  closedAt                DateTime?                @map("closed_at") @db.Timestamptz(6)
-  user                    User?
-  emails                  IdentityEmail[]
-  credentials             Credential[]
-  trustedDevices          TrustedDevice[]
-  sessions                Session[]
-  emailVerificationTokens EmailVerificationToken[]
-  passwordResetTokens     PasswordResetToken[]
-  securityEvents          IdentitySecurityEvent[]
+  id                          String                   @id @default(uuid()) @db.Uuid
+  status                      IdentityStatus
+  normalizedLoginEmail        String                   @map("normalized_login_email")
+  version                     Int                      @default(1)
+  createdAt                   DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                   DateTime                 @updatedAt @map("updated_at") @db.Timestamptz(6)
+  suspendedAt                 DateTime?                @map("suspended_at") @db.Timestamptz(6)
+  closedAt                    DateTime?                @map("closed_at") @db.Timestamptz(6)
+  user                        User?
+  emails                      IdentityEmail[]
+  credentials                 Credential[]
+  trustedDevices              TrustedDevice[]
+  sessions                    Session[]
+  emailVerificationTokens     EmailVerificationToken[]
+  passwordResetTokens         PasswordResetToken[]
+  securityEvents              IdentitySecurityEvent[]
+  organizationMemberships     OrganizationMembership[]
+  sentOrganizationInvitations OrganizationInvitation[] @relation("OrganizationInvitationInviter")
 
   @@index([status], map: "idx_identities_status")
   @@index([normalizedLoginEmail], map: "idx_identities_normalized_login_email")
@@ -246,4 +279,74 @@ model IdentitySecurityEvent {
   @@index([identityId, occurredAt], map: "idx_identity_security_events_identity_occurred_at")
   @@index([eventType, occurredAt], map: "idx_identity_security_events_type_occurred_at")
   @@map("identity_security_events")
+}
+
+model Organization {
+  id            String                   @id @default(uuid()) @db.Uuid
+  publicId      String?                  @unique(map: "uq_organizations_public_id") @map("public_id")
+  displayName   String                   @map("display_name")
+  slug          String                   @unique(map: "uq_organizations_slug")
+  status        OrganizationStatus
+  version       Int                      @default(1)
+  defaultLocale String                   @map("default_locale")
+  timezone      String
+  createdAt     DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime                 @updatedAt @map("updated_at") @db.Timestamptz(6)
+  activatedAt   DateTime?                @map("activated_at") @db.Timestamptz(6)
+  suspendedAt   DateTime?                @map("suspended_at") @db.Timestamptz(6)
+  closedAt      DateTime?                @map("closed_at") @db.Timestamptz(6)
+  archivedAt    DateTime?                @map("archived_at") @db.Timestamptz(6)
+  memberships   OrganizationMembership[]
+  invitations   OrganizationInvitation[]
+
+  @@index([status], map: "idx_organizations_status")
+  @@index([slug], map: "idx_organizations_slug")
+  @@map("organizations")
+}
+
+model OrganizationMembership {
+  id             String                       @id @default(uuid()) @db.Uuid
+  organizationId String                       @map("organization_id") @db.Uuid
+  identityId     String                       @map("identity_id") @db.Uuid
+  role           OrganizationRole
+  status         OrganizationMembershipStatus
+  invitationId   String?                      @map("invitation_id") @db.Uuid
+  createdAt      DateTime                     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime                     @updatedAt @map("updated_at") @db.Timestamptz(6)
+  activatedAt    DateTime                     @map("activated_at") @db.Timestamptz(6)
+  suspendedAt    DateTime?                    @map("suspended_at") @db.Timestamptz(6)
+  removedAt      DateTime?                    @map("removed_at") @db.Timestamptz(6)
+  lastChangedBy  String                       @map("last_changed_by") @db.Uuid
+  organization   Organization                 @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  identity       Identity                     @relation(fields: [identityId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  invitation     OrganizationInvitation?      @relation(fields: [invitationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([organizationId, status], map: "idx_org_memberships_organization_status")
+  @@index([identityId, status], map: "idx_org_memberships_identity_status")
+  @@index([organizationId, role, status], map: "idx_org_memberships_organization_role_status")
+  @@map("organization_memberships")
+}
+
+model OrganizationInvitation {
+  id                       String                       @id @default(uuid()) @db.Uuid
+  organizationId           String                       @map("organization_id") @db.Uuid
+  normalizedRecipientEmail String                       @map("normalized_recipient_email")
+  intendedRole             OrganizationRole             @map("intended_role")
+  status                   OrganizationInvitationStatus
+  tokenId                  String                       @unique(map: "uq_org_invitations_token_id") @map("token_id") @db.Uuid
+  tokenHash                String                       @unique(map: "uq_org_invitations_token_hash") @map("token_hash")
+  invitedBy                String                       @map("invited_by") @db.Uuid
+  createdAt                DateTime                     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                DateTime                     @updatedAt @map("updated_at") @db.Timestamptz(6)
+  expiresAt                DateTime                     @map("expires_at") @db.Timestamptz(6)
+  revokedAt                DateTime?                    @map("revoked_at") @db.Timestamptz(6)
+  acceptedAt               DateTime?                    @map("accepted_at") @db.Timestamptz(6)
+  organization             Organization                 @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  invitedByIdentity        Identity                     @relation("OrganizationInvitationInviter", fields: [invitedBy], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  memberships              OrganizationMembership[]
+
+  @@index([organizationId, status], map: "idx_org_invitations_organization_status")
+  @@index([normalizedRecipientEmail, status], map: "idx_org_invitations_email_status")
+  @@index([expiresAt], map: "idx_org_invitations_expires_at")
+  @@map("organization_invitations")
 }
