@@ -126,7 +126,11 @@ importers:
 
   packages/contracts: {}
 
-  packages/authorization-application: {}
+  packages/authorization-application:
+    dependencies:
+      '@seneve/tenant-context':
+        specifier: workspace:*
+        version: link:../tenant-context
 
   packages/domain/identity: {}
 
@@ -161,6 +165,8 @@ importers:
       '@seneve/domain-organization':
         specifier: workspace:*
         version: link:../domain/organization
+
+  packages/tenant-context: {}
 
   packages/shared: {}
 
