@@ -100,6 +100,16 @@ export interface OneTimeTokenConsumptionInput {
   readonly consumedAt: Date;
 }
 
+export interface PersistedOneTimeTokenReadModel {
+  readonly id: string;
+  readonly identityId: string;
+  readonly tokenId: string;
+  readonly status: OneTimeTokenStatus;
+  readonly createdAt: Date;
+  readonly expiresAt: Date;
+  readonly consumedAt: Date | null;
+}
+
 export type OneTimeTokenConsumptionResult =
   | {
       readonly outcome: 'CONSUMED';
@@ -186,6 +196,18 @@ export interface IdentityTokenRepository {
     readonly createdAt: Date;
     readonly expiresAt: Date;
   }): Promise<void>;
+  findLatestEmailVerificationToken(
+    identityId: string,
+  ): Promise<PersistedOneTimeTokenReadModel | null>;
+  countEmailVerificationTokensCreatedSince(input: {
+    readonly identityId: string;
+    readonly since: Date;
+  }): Promise<number>;
+  revokePendingEmailVerificationTokens(input: {
+    readonly identityId: string;
+    readonly revokedAt: Date;
+    readonly exceptTokenId?: string;
+  }): Promise<number>;
   consumeEmailVerificationToken(
     input: OneTimeTokenConsumptionInput,
   ): Promise<OneTimeTokenConsumptionResult>;

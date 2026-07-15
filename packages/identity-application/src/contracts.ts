@@ -46,6 +46,11 @@ export interface SecurityEventInput {
   readonly identityId: string | null;
   readonly eventType:
     | 'IDENTITY_REGISTERED'
+    | 'EMAIL_VERIFICATION_REQUESTED'
+    | 'EMAIL_VERIFICATION_RESENT'
+    | 'EMAIL_VERIFIED'
+    | 'EMAIL_VERIFICATION_FAILED'
+    | 'EMAIL_VERIFICATION_EXPIRED'
     | 'LOGIN_SUCCEEDED'
     | 'LOGIN_FAILED'
     | 'SESSION_CREATED'
@@ -63,6 +68,24 @@ export interface SecurityEventInput {
   readonly occurredAt: Date;
   readonly correlationId: string;
   readonly metadata?: Record<string, unknown>;
+}
+
+export interface EmailVerificationNotificationCommand {
+  readonly recipientEmail: string;
+  readonly template: 'identity.email_verification';
+  readonly locale: string;
+  readonly rawVerificationToken: string;
+  readonly verificationTokenId: string;
+  readonly expiresAt: Date;
+  readonly correlationId: string;
+}
+
+export interface EmailVerificationPolicy {
+  readonly minimumResendDelaySeconds: number;
+  readonly maximumRequestsPerWindow: number;
+  readonly requestWindowSeconds: number;
+  readonly supersedePreviousTokens: boolean;
+  readonly locale: string;
 }
 
 export interface SecurityEventRecorder {

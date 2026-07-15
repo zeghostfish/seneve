@@ -8,6 +8,7 @@ import type {
   OneTimeTokenConsumptionResult,
   PersistedIdentityReadModel,
   PersistedIdentityRegistration,
+  PersistedOneTimeTokenReadModel,
   PersistedSessionReadModel,
   PersistedTrustedDeviceReadModel,
   RefreshTokenRotationResult,
@@ -511,6 +512,58 @@ export class PrismaIdentityTokenRepository implements IdentityTokenRepository {
     });
   }
 
+  async findLatestEmailVerificationToken(
+    identityId: string,
+  ): Promise<PersistedOneTimeTokenReadModel | null> {
+    const token = await this.prisma.emailVerificationToken.findFirst({
+      where: {
+        identityId,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    return token ? toOneTimeTokenReadModel(token) : null;
+  }
+
+  async countEmailVerificationTokensCreatedSince(input: {
+    readonly identityId: string;
+    readonly since: Date;
+  }): Promise<number> {
+    return this.prisma.emailVerificationToken.count({
+      where: {
+        identityId: input.identityId,
+        createdAt: {
+          gte: input.since,
+        },
+      },
+    });
+  }
+
+  async revokePendingEmailVerificationTokens(input: {
+    readonly identityId: string;
+    readonly revokedAt: Date;
+    readonly exceptTokenId?: string;
+  }): Promise<number> {
+    const result = await this.prisma.emailVerificationToken.updateMany({
+      where: {
+        identityId: input.identityId,
+        status: 'PENDING',
+        tokenId: input.exceptTokenId
+          ? {
+              not: input.exceptTokenId,
+            }
+          : undefined,
+      },
+      data: {
+        status: 'REVOKED',
+      },
+    });
+
+    return result.count;
+  }
+
   async consumeEmailVerificationToken(
     input: OneTimeTokenConsumptionInput,
   ): Promise<OneTimeTokenConsumptionResult> {
@@ -543,6 +596,20 @@ export class PrismaIdentityTokenRepository implements IdentityTokenRepository {
   ): Promise<OneTimeTokenConsumptionResult> {
     return consumePasswordResetToken(this.prisma, input);
   }
+}
+
+type OneTimeTokenRecord = Prisma.EmailVerificationTokenGetPayload<Record<string, never>>;
+
+function toOneTimeTokenReadModel(token: OneTimeTokenRecord): PersistedOneTimeTokenReadModel {
+  return {
+    id: token.id,
+    identityId: token.identityId,
+    tokenId: token.tokenId,
+    status: token.status,
+    createdAt: token.createdAt,
+    expiresAt: token.expiresAt,
+    consumedAt: token.consumedAt,
+  };
 }
 
 export class PrismaIdentityUnitOfWork {
