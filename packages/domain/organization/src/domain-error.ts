@@ -1,0 +1,31 @@
+export type OrganizationDomainErrorCode =
+  | 'ORGANIZATION_INVALID_STATE'
+  | 'ORGANIZATION_ALREADY_ACTIVE'
+  | 'ORGANIZATION_SUSPENDED'
+  | 'ORGANIZATION_CLOSED'
+  | 'ORGANIZATION_ARCHIVED'
+  | 'MEMBERSHIP_ALREADY_EXISTS'
+  | 'MEMBERSHIP_NOT_FOUND'
+  | 'MEMBERSHIP_INVALID_STATE'
+  | 'MEMBERSHIP_ROLE_INVALID'
+  | 'LAST_OWNER_REQUIRED'
+  | 'LAST_OWNER_REMOVAL_FORBIDDEN'
+  | 'LAST_OWNER_SUSPENSION_FORBIDDEN'
+  | 'OWNERSHIP_TRANSFER_INVALID'
+  | 'INVITATION_ALREADY_EXISTS'
+  | 'INVITATION_NOT_FOUND'
+  | 'INVITATION_EXPIRED'
+  | 'INVITATION_REVOKED'
+  | 'INVITATION_ALREADY_ACCEPTED'
+  | 'INVITATION_RECIPIENT_MISMATCH'
+  | 'INVITATION_ROLE_INVALID';
+
+export class OrganizationDomainError extends Error {
+  constructor(
+    public readonly code: OrganizationDomainErrorCode,
+    message: string,
+  ) {
+    super(message);
+    this.name = 'OrganizationDomainError';
+  }
+}
