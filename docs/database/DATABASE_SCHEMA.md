@@ -576,6 +576,8 @@ Business validations:
 
 Implementation status: implemented in Epic 002 Phase 9.
 
+Isolation status: protected by PostgreSQL Row-Level Security in Epic 002 Phase 11.
+
 Purpose: tenant root for customer data.
 
 Fields:
@@ -637,6 +639,8 @@ Business validations:
 ### memberships
 
 Implementation status: implemented in Epic 002 Phase 9.
+
+Isolation status: protected by PostgreSQL Row-Level Security in Epic 002 Phase 11.
 
 Purpose: association between identities and organizations.
 
@@ -701,6 +705,8 @@ Business validations:
 ### organization_invitations
 
 Implementation status: implemented in Epic 002 Phase 9.
+
+Isolation status: protected by PostgreSQL Row-Level Security in Epic 002 Phase 11.
 
 Purpose: pending invitation to join one organization with an intended role.
 

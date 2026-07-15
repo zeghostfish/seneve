@@ -4,7 +4,7 @@
 
 Phase 9 implementation complete under the approved Local Implementation Waiver.
 
-Phase 7 established the domain model. Phase 8 established authorization evaluation. Phase 9 adds Organization persistence only. It introduces no tenant RLS, NestJS modules, controllers, invitation delivery, HTTP API, custom roles, subscriptions, billing, API keys or campaign functionality.
+Phase 7 established the domain model. Phase 8 established authorization evaluation. Phase 9 added Organization persistence. Phase 11 adds PostgreSQL Row-Level Security for implemented organization-scoped tables. It introduces no NestJS modules, controllers, invitation delivery, HTTP API, custom roles, subscriptions, billing, API keys or campaign functionality.
 
 ## Aggregate Boundary
 
@@ -235,6 +235,24 @@ PostgreSQL-gated tests cover:
 - atomic ownership transfer.
 - unit-of-work rollback.
 
+## Phase 11 Row-Level Security
+
+Protected tables:
+
+- `organizations`
+- `organization_memberships`
+- `organization_invitations`
+
+RLS uses transaction-local `app.*` PostgreSQL settings populated by `PrismaTenantRlsTransactionBoundary`.
+
+Policy behavior:
+
+- missing tenant context denies organization-scoped access.
+- tenant mode is limited to the current tenant.
+- cross-tenant mode is limited to the explicit target tenant and requires privileged context plus reason.
+- platform administration requires explicit privileged context and correlation identifier.
+- `USING` and `WITH CHECK` policies protect reads, writes and tenant reassignment attempts.
+
 ## Testing
 
 Phase 7 domain tests cover:
@@ -252,8 +270,6 @@ Phase 7 domain tests cover:
 
 ## Known Limitations
 
-- no tenant RLS.
-- no tenant request context propagation.
 - no invitation delivery.
 - no organization API.
 - no subscription, billing, API-key, payment-account or branding children.

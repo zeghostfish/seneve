@@ -4,7 +4,7 @@
 
 Design approved. Local implementation authorized by project-owner waiver.
 
-Implementation must follow the approved phase order. Phase 10 is complete and remains limited to Tenant Context infrastructure with no PostgreSQL RLS, controllers or REST API.
+Implementation must follow the approved phase order. Phase 11 is implemented and remains limited to PostgreSQL Row-Level Security with no Audit persistence, controllers or REST API.
 
 ## Objective
 
@@ -352,6 +352,33 @@ Not implemented in Phase 10:
 - tenant-aware HTTP middleware.
 - REST controllers.
 - generic audit persistence.
+
+### Phase 11 - PostgreSQL Row-Level Security
+
+Status: implemented, PostgreSQL runtime validation pending.
+
+Implemented locally:
+
+- versioned RLS migration for organization-scoped tables.
+- RLS helper functions under the `app` schema.
+- transaction-local database settings for tenant, identity, execution mode, correlation, platform-admin and cross-tenant metadata.
+- `ENABLE ROW LEVEL SECURITY` and `FORCE ROW LEVEL SECURITY` for protected organization tables.
+- `USING` and `WITH CHECK` policies for organizations, memberships and invitations.
+- `PrismaTenantRlsTransactionBoundary`.
+- controlled organization-bootstrap operation.
+- controlled invitation-acceptance operation.
+- platform-administration and cross-tenant database execution paths.
+- PostgreSQL-gated RLS integration tests.
+- unit tests for tenant-aware transaction setting behavior.
+
+Not implemented in Phase 11:
+
+- generic Audit persistence.
+- NestJS middleware.
+- HTTP tenant headers.
+- REST controllers.
+- frontend tenant selection.
+- production role provisioning automation.
 
 ## Confirmed V1 Authentication Decisions
 

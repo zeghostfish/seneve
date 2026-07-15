@@ -133,13 +133,11 @@ Authorization decisions still require explicit organization, membership and reso
 
 Phase 10 explicitly does not implement:
 
-- PostgreSQL RLS policies;
-- `SET LOCAL`;
-- database session variables;
-- Prisma middleware for RLS;
-- database-level tenant enforcement.
+- HTTP tenant middleware;
+- HTTP tenant headers;
+- controller integration.
 
-These belong to Epic 002 Phase 11.
+Epic 002 Phase 11 implements PostgreSQL RLS through a dedicated transaction boundary that consumes this context.
 
 ## Testing Requirements
 
