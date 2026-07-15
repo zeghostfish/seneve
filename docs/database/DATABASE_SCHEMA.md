@@ -574,6 +574,8 @@ Business validations:
 
 ### organizations
 
+Implementation status: proposed future schema. Phase 7 implements only the domain model and does not create this table yet.
+
 Purpose: tenant root for customer data.
 
 Fields:
@@ -628,13 +630,15 @@ Business validations:
 
 ### memberships
 
+Implementation status: proposed future schema. Phase 7 implements only the domain model and does not create this table yet.
+
 Purpose: association between users and organizations.
 
 Fields:
 
 - `id`: UUID, primary key
 - `organization_id`: UUID, required
-- `user_id`: UUID, required
+- `identity_id`: UUID, required
 - `status`: enum `MembershipStatus`
 - `created_at`: timestamp with time zone
 - `updated_at`: timestamp with time zone
@@ -642,22 +646,23 @@ Fields:
 
 Indexes:
 
-- unique `organization_id`, `user_id`
+- unique active membership for `organization_id`, `identity_id`
 - `organization_id`, `status`
-- `user_id`, `status`
+- `identity_id`, `status`
 
 Relationships:
 
 - belongs to `organizations`
-- belongs to `users`
+- references Identity by identifier; it does not duplicate Identity or User profile data
 - has assigned roles through membership-role join table
 
 Lifecycle:
 
-- invited
 - active
 - suspended
 - removed
+
+Pending participation is represented by invitations, not by a duplicate pending membership row.
 
 Audit:
 
@@ -673,7 +678,10 @@ Permissions:
 
 Business validations:
 
-- user cannot act in organization without active membership unless platform admin policy applies
+- identity cannot act in organization without active membership unless platform admin policy applies
+- active organization must retain at least one active owner
+- last owner cannot be removed, suspended or downgraded except through explicit ownership transfer
+- removed membership cannot silently become active again
 
 ### roles
 

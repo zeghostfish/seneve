@@ -4,7 +4,7 @@
 
 Design approved. Local implementation authorized by project-owner waiver.
 
-Implementation must follow the approved phase order. Phase 6 is complete and remains limited to Password Reset application workflows with no controllers or REST API.
+Implementation must follow the approved phase order. Phase 7 is complete and remains limited to the Organization domain foundation with no persistence, tenant RLS, Permission Evaluation Service, controllers or REST API.
 
 ## Objective
 
@@ -227,6 +227,40 @@ Not implemented in Phase 6:
 - authenticated password change.
 - historical password reuse comparison beyond the current active password.
 - Redis/API-layer abuse controls.
+
+### Phase 7 - Organization Aggregate Foundation
+
+Status: complete.
+
+Implemented locally:
+
+- `@seneve/domain-organization` package.
+- `Organization` aggregate root.
+- organization profile value object with display name, slug, locale and timezone.
+- organization lifecycle state machine: `DRAFT`, `ACTIVE`, `SUSPENDED`, `CLOSED`, `ARCHIVED`.
+- membership role catalogue: `OWNER`, `ADMINISTRATOR`, `EVENT_MANAGER`, `FINANCE_MANAGER`, `CONTENT_MANAGER`, `VIEWER`, `AUDITOR`.
+- membership lifecycle: `ACTIVE`, `SUSPENDED`, `REMOVED`.
+- invitation lifecycle: `PENDING`, `ACCEPTED`, `REVOKED`, `EXPIRED`.
+- pending membership decision: pending participation is represented by Invitation, not a duplicate Membership state.
+- last-owner protection for removal, suspension and downgrade.
+- explicit ownership transfer operation.
+- duplicate active membership protection.
+- duplicate pending invitation protection.
+- invitation recipient matching and replay protection.
+- stable organization domain errors.
+- versioned organization domain-event contracts.
+
+Not implemented in Phase 7:
+
+- Prisma organization models.
+- organization migrations.
+- repository adapters.
+- tenant Row-Level Security.
+- Permission Evaluation Service.
+- NestJS modules.
+- HTTP controllers.
+- invitation delivery.
+- subscription, billing, API keys, payment accounts or advanced branding.
 
 ## Confirmed V1 Authentication Decisions
 
@@ -616,14 +650,14 @@ Rules:
 ### MembershipStatus
 
 ```text
-invited
-  -> active
+active
   -> suspended
   -> removed
 ```
 
 Rules:
 
+- pending participation is represented by `InvitationStatus.pending`; Phase 7 does not create a duplicate pending Membership state.
 - active membership is required for normal tenant-scoped access.
 - removed membership does not delete audit history.
 - suspended membership cannot access tenant resources.
