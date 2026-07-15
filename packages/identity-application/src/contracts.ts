@@ -2,6 +2,7 @@ import type {
   IdentityRepository,
   IdentitySessionRepository,
   IdentityTokenRepository,
+  TrustedDeviceRepository,
 } from '@seneve/domain-identity';
 
 export interface Clock {
@@ -49,9 +50,16 @@ export interface SecurityEventInput {
     | 'LOGIN_FAILED'
     | 'SESSION_CREATED'
     | 'SESSION_REVOKED'
+    | 'SESSION_EXPIRED'
+    | 'NEW_DEVICE'
+    | 'PASSWORD_CHANGED'
+    | 'SUSPICIOUS_LOGIN'
+    | 'CONCURRENT_LOGIN_LIMIT_REACHED'
+    | 'ADMINISTRATOR_SESSION_REVOKED'
     | 'REFRESH_TOKEN_ROTATED'
     | 'REFRESH_TOKEN_REUSE_DETECTED'
-    | 'IDENTITY_SUSPENDED';
+    | 'IDENTITY_SUSPENDED'
+    | 'SECURITY_POLICY_VIOLATION';
   readonly occurredAt: Date;
   readonly correlationId: string;
   readonly metadata?: Record<string, unknown>;
@@ -65,6 +73,7 @@ export interface IdentityApplicationRepositories {
   readonly identities: IdentityRepository;
   readonly sessions: IdentitySessionRepository;
   readonly tokens: IdentityTokenRepository;
+  readonly devices: TrustedDeviceRepository;
 }
 
 export interface IdentityUnitOfWork {
@@ -76,6 +85,8 @@ export interface AuthenticationServiceDependencies {
   readonly identities: IdentityRepository;
   readonly sessions: IdentitySessionRepository;
   readonly tokens: IdentityTokenRepository;
+  readonly devices: TrustedDeviceRepository;
+  readonly securityDecisionService: SecurityDecisionService;
   readonly passwordHasher: PasswordHasher;
   readonly tokenGenerator: TokenGenerator;
   readonly tokenHasher: TokenHasher;
@@ -86,4 +97,54 @@ export interface AuthenticationServiceDependencies {
   readonly refreshTokenTtlSeconds: number;
   readonly sessionTtlSeconds: number;
   readonly emailVerificationTokenTtlSeconds: number;
+}
+
+export interface SecurityPolicy {
+  readonly maximumConcurrentSessions: number;
+  readonly sessionDurationSeconds: number;
+  readonly refreshTokenLifetimeSeconds: number;
+  readonly passwordLifetimeDays: number;
+  readonly requireEmailVerificationForLogin: boolean;
+  readonly forceLogoutOnPasswordChange: boolean;
+  readonly preventPasswordReuseCount: number;
+  readonly trustNewDevicesByDefault: boolean;
+}
+
+export type SecurityDecisionReason =
+  | 'ALLOWED'
+  | 'IDENTITY_SUSPENDED'
+  | 'EMAIL_VERIFICATION_REQUIRED'
+  | 'MAXIMUM_CONCURRENT_SESSIONS_REACHED'
+  | 'SESSION_INVALID'
+  | 'SESSION_REVOKED'
+  | 'SESSION_EXPIRED'
+  | 'DEVICE_REVOKED'
+  | 'PASSWORD_ROTATION_REQUIRED';
+
+export interface SecurityDecision {
+  readonly allowed: boolean;
+  readonly reason: SecurityDecisionReason;
+}
+
+export interface SecurityDecisionService {
+  canLogin(input: {
+    readonly identityStatus: string;
+    readonly emailVerified: boolean;
+    readonly activeSessionCount: number;
+  }): SecurityDecision;
+  canRefresh(input: {
+    readonly sessionStatus: string;
+    readonly sessionExpiresAt: Date;
+    readonly now: Date;
+  }): SecurityDecision;
+  canCreateSession(input: { readonly activeSessionCount: number }): SecurityDecision;
+  canCreateNewDevice(): SecurityDecision;
+  mustForceLogout(input: {
+    readonly reason: 'PASSWORD_CHANGED' | 'IDENTITY_SUSPENDED';
+  }): SecurityDecision;
+  mustRequireEmailVerification(input: { readonly emailVerified: boolean }): SecurityDecision;
+  mustRotateCredential(input: {
+    readonly credentialCreatedAt: Date;
+    readonly now: Date;
+  }): SecurityDecision;
 }

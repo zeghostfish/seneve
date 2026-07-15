@@ -20,9 +20,12 @@ import type {
   PersistedIdentityReadModel,
   PersistedIdentityRegistration,
   PersistedSessionReadModel,
+  PersistedTrustedDeviceReadModel,
   RefreshTokenRotationResult,
   RotateRefreshTokenInput,
+  TrustedDeviceRepository,
 } from '@seneve/domain-identity';
+import { ConfigurableSecurityDecisionService } from './security-policy-service.js';
 
 const now = new Date('2026-07-14T00:00:00.000Z');
 
@@ -110,6 +113,7 @@ describe('AuthenticationService', () => {
         rawToken: 'raw-token-1',
         expiresAt: new Date('2026-08-13T00:00:00.000Z'),
       },
+      deviceId: null,
     });
     expect(fixture.sessions.created[0]?.refreshTokenHash).toBe('hmac-sha256:raw-token-1');
     expect(fixture.events.events.map((event) => event.eventType)).toContain('LOGIN_SUCCEEDED');
@@ -177,8 +181,11 @@ describe('AuthenticationService', () => {
       status: 'ACTIVE',
       version: 1,
       createdAt: now,
+      lastActivityAt: now,
       expiresAt: new Date('2026-08-13T00:00:00.000Z'),
       revokedAt: null,
+      revokedReason: null,
+      device: null,
     });
     fixture.sessions.rotationResult = {
       outcome: 'ROTATED',
@@ -235,6 +242,46 @@ describe('AuthenticationService', () => {
     expect(fixture.sessions.revokedIdentities).toEqual(['identity-1']);
     expect(fixture.identities.suspendedIdentities).toEqual(['identity-1']);
   });
+
+  it('registers a trusted device during login and blocks maximum concurrent session violations', async () => {
+    fixture.identities.records.set('ada@example.com', verifiedIdentity());
+    fixture.sessions.activeSessionCount = 0;
+
+    const result = await fixture.service.login({
+      email: 'ada@example.com',
+      plaintextPassword: 'CorrectHorse1!',
+      correlationId: 'correlation-1',
+      device: {
+        hash: 'hmac-sha256:devicefingerprintabcdefghijklmnopqrstuvwxyz',
+        displayName: 'Ada MacBook',
+      },
+    });
+
+    expect(result.deviceId).toBe('uuid-3');
+    expect(fixture.devices.created[0]).toMatchObject({
+      fingerprintHash: 'hmac-sha256:devicefingerprintabcdefghijklmnopqrstuvwxyz',
+      displayName: 'Ada MacBook',
+    });
+    expect(fixture.events.events.map((event) => event.eventType)).toContain('NEW_DEVICE');
+
+    fixture.sessions.activeSessionCount = 5;
+
+    await expect(
+      fixture.service.login({
+        email: 'ada@example.com',
+        plaintextPassword: 'CorrectHorse1!',
+        correlationId: 'correlation-2',
+      }),
+    ).rejects.toMatchObject({ code: 'SESSION_INVALID' });
+    expect(fixture.events.events).toContainEqual(
+      expect.objectContaining({
+        eventType: 'LOGIN_FAILED',
+        metadata: {
+          reason: 'MAXIMUM_CONCURRENT_SESSIONS_REACHED',
+        },
+      }),
+    );
+  });
 });
 
 interface Fixture {
@@ -242,6 +289,7 @@ interface Fixture {
   readonly identities: InMemoryIdentityRepository;
   readonly sessions: InMemorySessionRepository;
   readonly tokens: InMemoryTokenRepository;
+  readonly devices: InMemoryTrustedDeviceRepository;
   readonly passwordHasher: TestPasswordHasher;
   readonly events: InMemorySecurityEventRecorder;
 }
@@ -250,11 +298,12 @@ function createFixture(): Fixture {
   const identities = new InMemoryIdentityRepository();
   const sessions = new InMemorySessionRepository();
   const tokens = new InMemoryTokenRepository();
+  const devices = new InMemoryTrustedDeviceRepository();
   const passwordHasher = new TestPasswordHasher();
   const events = new InMemorySecurityEventRecorder();
   const tokenGenerator = new DeterministicTokenGenerator();
   const clock: Clock = { now: () => now };
-  const repositories = { identities, sessions, tokens };
+  const repositories = { identities, sessions, tokens, devices };
   const unitOfWork: IdentityUnitOfWork = {
     transaction: async <T>(
       work: (transactionRepositories: IdentityApplicationRepositories) => Promise<T>,
@@ -267,6 +316,8 @@ function createFixture(): Fixture {
       identities,
       sessions,
       tokens,
+      devices,
+      securityDecisionService: new ConfigurableSecurityDecisionService(),
       passwordHasher,
       tokenGenerator,
       tokenHasher: {
@@ -285,6 +336,7 @@ function createFixture(): Fixture {
     identities,
     sessions,
     tokens,
+    devices,
     passwordHasher,
     events,
   };
@@ -362,6 +414,7 @@ class InMemorySessionRepository implements IdentitySessionRepository {
   readonly rotations: RotateRefreshTokenInput[] = [];
   readonly revokedSessions: string[] = [];
   readonly revokedIdentities: string[] = [];
+  activeSessionCount = 0;
   rotationResult: RefreshTokenRotationResult = { outcome: 'NOT_FOUND' };
 
   async createSessionWithRefreshToken(input: CreateSessionWithRefreshTokenInput): Promise<void> {
@@ -370,6 +423,14 @@ class InMemorySessionRepository implements IdentitySessionRepository {
 
   async findSessionById(sessionId: string): Promise<PersistedSessionReadModel | null> {
     return this.records.get(sessionId) ?? null;
+  }
+
+  async listActiveSessions(): Promise<readonly PersistedSessionReadModel[]> {
+    return [...this.records.values()].filter((session) => session.status === 'ACTIVE');
+  }
+
+  async countActiveSessions(): Promise<number> {
+    return this.activeSessionCount;
   }
 
   async rotateRefreshToken(input: RotateRefreshTokenInput): Promise<RefreshTokenRotationResult> {
@@ -385,6 +446,57 @@ class InMemorySessionRepository implements IdentitySessionRepository {
   async revokeAllSessionsForIdentity(identityId: string): Promise<number> {
     this.revokedIdentities.push(identityId);
     return 1;
+  }
+
+  async touchSession(): Promise<boolean> {
+    return true;
+  }
+
+  async expireSessions(): Promise<number> {
+    return 0;
+  }
+
+  async revokeAllSessionsExcept(identityId: string, currentSessionId: string): Promise<number> {
+    this.revokedIdentities.push(`${identityId}:${currentSessionId}`);
+    return 1;
+  }
+}
+
+class InMemoryTrustedDeviceRepository implements TrustedDeviceRepository {
+  readonly records = new Map<string, PersistedTrustedDeviceReadModel>();
+  readonly created: PersistedTrustedDeviceReadModel[] = [];
+
+  async findTrustedDevice(
+    identityId: string,
+    fingerprintHash: string,
+  ): Promise<PersistedTrustedDeviceReadModel | null> {
+    return this.records.get(`${identityId}:${fingerprintHash}`) ?? null;
+  }
+
+  async createTrustedDevice(input: {
+    readonly id: string;
+    readonly identityId: string;
+    readonly fingerprintHash: string;
+    readonly displayName: string;
+    readonly firstSeenAt: Date;
+  }): Promise<PersistedTrustedDeviceReadModel> {
+    const device = {
+      ...input,
+      status: 'TRUSTED' as const,
+      lastActivityAt: input.firstSeenAt,
+      revokedAt: null,
+    };
+    this.created.push(device);
+    this.records.set(`${input.identityId}:${input.fingerprintHash}`, device);
+    return device;
+  }
+
+  async touchTrustedDevice(): Promise<boolean> {
+    return true;
+  }
+
+  async revokeTrustedDevice(): Promise<boolean> {
+    return true;
   }
 }
 

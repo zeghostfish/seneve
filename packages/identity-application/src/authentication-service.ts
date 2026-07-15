@@ -1,4 +1,4 @@
-import { PasswordPolicy } from '@seneve/domain-identity';
+import { type DeviceFingerprint, PasswordPolicy } from '@seneve/domain-identity';
 
 import { IdentityApplicationError } from './application-error.js';
 import type { AuthenticationServiceDependencies } from './contracts.js';
@@ -24,6 +24,7 @@ export interface LoginCommand {
   readonly email: string;
   readonly plaintextPassword: string;
   readonly correlationId: string;
+  readonly device?: DeviceFingerprint | null;
 }
 
 export interface AuthenticatedSessionResult {
@@ -36,6 +37,7 @@ export interface AuthenticatedSessionResult {
     readonly rawToken: string;
     readonly expiresAt: Date;
   };
+  readonly deviceId: string | null;
 }
 
 export interface RefreshSessionCommand {
@@ -136,12 +138,16 @@ export class AuthenticationService {
       throw new IdentityApplicationError('IDENTITY_SUSPENDED', 'Identity is suspended.');
     }
 
-    if (identity.status === 'PENDING_EMAIL_VERIFICATION' || !identity.primaryEmail.verifiedAt) {
-      await this.recordLoginFailed(identity.id, command.correlationId, now, 'EMAIL_NOT_VERIFIED');
-      throw new IdentityApplicationError(
-        'EMAIL_VERIFICATION_REQUIRED',
-        'Email verification is required.',
-      );
+    const activeSessionCount = await this.deps.sessions.countActiveSessions(identity.id, now);
+    const loginDecision = this.deps.securityDecisionService.canLogin({
+      identityStatus: identity.status,
+      emailVerified: Boolean(identity.primaryEmail.verifiedAt),
+      activeSessionCount,
+    });
+
+    if (!loginDecision.allowed) {
+      await this.recordLoginFailed(identity.id, command.correlationId, now, loginDecision.reason);
+      throw mapSecurityDecision(loginDecision.reason);
     }
 
     const passwordCredential = identity.activeCredentials.find(
@@ -174,6 +180,7 @@ export class AuthenticationService {
       tokenVersion: identity.version,
       correlationId: command.correlationId,
       now,
+      device: command.device ?? null,
     });
 
     await this.deps.securityEvents.record({
@@ -253,12 +260,13 @@ export class AuthenticationService {
         rawToken: nextRefreshToken.rawToken,
         expiresAt: addSeconds(now, this.deps.refreshTokenTtlSeconds),
       },
+      deviceId: null,
     };
   }
 
   async logout(command: LogoutCommand): Promise<void> {
     const now = this.deps.clock.now();
-    await this.deps.sessions.revokeSession(command.sessionId, now);
+    await this.deps.sessions.revokeSession(command.sessionId, now, 'LOGOUT');
     await this.deps.securityEvents.record({
       identityId: null,
       eventType: 'SESSION_REVOKED',
@@ -273,7 +281,7 @@ export class AuthenticationService {
 
   async revokeAllSessions(identityId: string, correlationId: string): Promise<void> {
     const now = this.deps.clock.now();
-    await this.deps.sessions.revokeAllSessionsForIdentity(identityId, now);
+    await this.deps.sessions.revokeAllSessionsForIdentity(identityId, now, 'ALL_SESSIONS_REVOKED');
     await this.deps.securityEvents.record({
       identityId,
       eventType: 'SESSION_REVOKED',
@@ -306,6 +314,7 @@ export class AuthenticationService {
     readonly tokenVersion: number;
     readonly correlationId: string;
     readonly now: Date;
+    readonly device: DeviceFingerprint | null;
   }): Promise<AuthenticatedSessionResult> {
     const sessionId = this.deps.tokenGenerator.uuid();
     const refreshTokenFamilyId = this.deps.tokenGenerator.uuid();
@@ -314,11 +323,17 @@ export class AuthenticationService {
     const accessTokenExpiresAt = addSeconds(input.now, this.deps.accessTokenTtlSeconds);
     const sessionExpiresAt = addSeconds(input.now, this.deps.sessionTtlSeconds);
     const refreshTokenExpiresAt = addSeconds(input.now, this.deps.refreshTokenTtlSeconds);
+    const deviceId = await this.resolveDeviceId(
+      input.identityId,
+      input.device,
+      input.correlationId,
+    );
 
     await this.deps.unitOfWork.transaction(async (repositories) => {
       await repositories.sessions.createSessionWithRefreshToken({
         sessionId,
         identityId: input.identityId,
+        deviceId,
         refreshTokenId: refreshToken.tokenId,
         refreshTokenFamilyId,
         refreshTokenHash,
@@ -356,6 +371,7 @@ export class AuthenticationService {
         rawToken: refreshToken.rawToken,
         expiresAt: refreshTokenExpiresAt,
       },
+      deviceId,
     };
   }
 
@@ -368,6 +384,16 @@ export class AuthenticationService {
 
     if (session.status === 'REVOKED') {
       throw new IdentityApplicationError('SESSION_REVOKED', 'Session has been revoked.');
+    }
+
+    const refreshDecision = this.deps.securityDecisionService.canRefresh({
+      sessionStatus: session.status,
+      sessionExpiresAt: session.expiresAt,
+      now: this.deps.clock.now(),
+    });
+
+    if (!refreshDecision.allowed) {
+      throw mapSecurityDecision(refreshDecision.reason);
     }
 
     const identity = await this.deps.identities.findById(session.identityId);
@@ -390,6 +416,62 @@ export class AuthenticationService {
     return identity;
   }
 
+  private async resolveDeviceId(
+    identityId: string,
+    device: DeviceFingerprint | null,
+    correlationId: string,
+  ): Promise<string | null> {
+    if (!device) {
+      return null;
+    }
+
+    const now = this.deps.clock.now();
+    const existing = await this.deps.devices.findTrustedDevice(identityId, device.hash);
+
+    if (existing?.status === 'REVOKED') {
+      throw new IdentityApplicationError('SESSION_REVOKED', 'Device has been revoked.');
+    }
+
+    if (existing) {
+      await this.deps.devices.touchTrustedDevice(existing.id, now);
+      return existing.id;
+    }
+
+    const decision = this.deps.securityDecisionService.canCreateNewDevice();
+
+    if (!decision.allowed) {
+      await this.deps.securityEvents.record({
+        identityId,
+        eventType: 'SECURITY_POLICY_VIOLATION',
+        occurredAt: now,
+        correlationId,
+        metadata: {
+          reason: decision.reason,
+        },
+      });
+      throw mapSecurityDecision(decision.reason);
+    }
+
+    const created = await this.deps.devices.createTrustedDevice({
+      id: this.deps.tokenGenerator.uuid(),
+      identityId,
+      fingerprintHash: device.hash,
+      displayName: device.displayName,
+      firstSeenAt: now,
+    });
+    await this.deps.securityEvents.record({
+      identityId,
+      eventType: 'NEW_DEVICE',
+      occurredAt: now,
+      correlationId,
+      metadata: {
+        deviceId: created.id,
+      },
+    });
+
+    return created.id;
+  }
+
   private async recordLoginFailed(
     identityId: string | null,
     correlationId: string,
@@ -406,6 +488,29 @@ export class AuthenticationService {
       },
     });
   }
+}
+
+function mapSecurityDecision(reason: string): IdentityApplicationError {
+  if (reason === 'EMAIL_VERIFICATION_REQUIRED') {
+    return new IdentityApplicationError(
+      'EMAIL_VERIFICATION_REQUIRED',
+      'Email verification is required.',
+    );
+  }
+
+  if (reason === 'IDENTITY_SUSPENDED') {
+    return new IdentityApplicationError('IDENTITY_SUSPENDED', 'Identity is suspended.');
+  }
+
+  if (reason === 'SESSION_REVOKED') {
+    return new IdentityApplicationError('SESSION_REVOKED', 'Session has been revoked.');
+  }
+
+  if (reason === 'SESSION_EXPIRED') {
+    return new IdentityApplicationError('REFRESH_TOKEN_EXPIRED', 'Session has expired.');
+  }
+
+  return new IdentityApplicationError('SESSION_INVALID', 'Security policy denied the operation.');
 }
 
 export function normalizeEmail(email: string): string {
