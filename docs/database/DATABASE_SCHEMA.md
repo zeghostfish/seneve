@@ -620,13 +620,14 @@ Audit:
 
 API exposure:
 
-- deferred until Organization API phase
-- platform administration path deferred until Tenant Context and Audit phases
+- exposed through the Phase 14 Organization API response DTOs
+- raw persistence records are never returned directly
+- platform administration path remains explicit and exceptional
 
 Permissions:
 
 - organization actions require Permission Evaluation before business logic
-- Phase 9 persists organization governance state only; it does not expose APIs
+- Phase 14 exposes organization read and mutation operations through application services
 
 Business validations:
 
@@ -687,6 +688,12 @@ Audit:
 - role changes
 - suspension
 - removal
+
+API exposure:
+
+- exposed through Phase 14 membership response DTOs
+- identity references are returned only as identifiers
+- authentication credentials, session data and identity security details are not exposed
 
 Permissions:
 
@@ -759,6 +766,12 @@ Permissions:
 
 - invitation creation and revocation require Permission Evaluation before business logic
 - invitation delivery is deferred
+
+API exposure:
+
+- exposed through Phase 14 invitation response DTOs
+- raw invitation tokens are never returned
+- invitation acceptance accepts a token id and raw token through the dedicated acceptance route
 
 Business validations:
 

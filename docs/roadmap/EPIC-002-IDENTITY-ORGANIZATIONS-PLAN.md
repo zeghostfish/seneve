@@ -4,9 +4,9 @@
 
 Design approved. Local implementation authorized by project-owner waiver.
 
-Implementation must follow the approved phase order. Phase 13 is implemented locally and remains
-limited to the HTTP Authentication API. Organization APIs, frontend integration and production
-PostgreSQL/Redis validation remain pending.
+Implementation must follow the approved phase order. Phase 14 is implemented locally and remains
+limited to the Organization HTTP API. Frontend integration and production PostgreSQL/Redis
+validation remain pending.
 
 ## Objective
 
@@ -440,12 +440,45 @@ Implemented locally:
 
 Not implemented in Phase 13:
 
-- Organization HTTP APIs.
 - frontend login or recovery pages.
 - external email-provider delivery.
 - MFA, passkeys, SSO or social login.
 - authenticated password change.
 - audit HTTP endpoints.
+- Playwright end-to-end tests.
+
+### Phase 14 - Organization HTTP API
+
+Status: implemented locally, PostgreSQL and Redis runtime validation pending.
+
+Implemented locally:
+
+- `@seneve/organization-application` package for transport-independent Organization use cases.
+- NestJS Organization transport module with controllers, DTO validation, response mapping and
+  centralized public error mapping.
+- Organization creation, listing, retrieval, profile update and lifecycle transition routes.
+- Membership listing, role-update, suspension and removal routes.
+- Invitation creation, listing, revocation and token-based acceptance routes.
+- Ownership-transfer route.
+- Permission Evaluation Service integration for every protected organization operation.
+- Tenant Context Engine and tenant-aware transaction integration for organization-scoped mutations.
+- Mandatory audit-event recording through the Audit application boundary for Organization domain
+  events.
+- OpenAPI-discoverable DTOs and controller metadata.
+- Supertest coverage for organization creation, permission denial mapping, invitation token
+  redaction, last-owner protection mapping and invitation acceptance routing.
+
+Not implemented in Phase 14:
+
+- frontend organization pages.
+- organization switcher UI.
+- production invitation delivery.
+- Redis-validated organization rate limiting.
+- custom roles.
+- subscriptions, billing profile or API keys.
+- Campaign domain.
+- public developer API.
+- audit HTTP endpoints or audit UI.
 - Playwright end-to-end tests.
 
 ## Confirmed V1 Authentication Decisions

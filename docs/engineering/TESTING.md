@@ -77,6 +77,7 @@ The PostgreSQL suite currently covers:
 - Organization persistence;
 - PostgreSQL Row-Level Security tenant isolation.
 - Authentication HTTP behavior with Supertest and application-service test doubles.
+- Organization HTTP behavior with Supertest and application-service test doubles.
 - Audit persistence and audit RLS.
 
 Phase 11 validation target:
@@ -88,3 +89,16 @@ Phase 11 validation target:
 - unfiltered, nested, aggregate and bulk organization queries isolated by the database.
 
 If PostgreSQL is unavailable locally, tests may remain skipped only in local development. CI must provide PostgreSQL and execute them.
+
+## Organization HTTP Tests
+
+Phase 14 HTTP tests cover:
+
+- organization creation request/response mapping;
+- permission-denial public error mapping;
+- invitation creation without raw token exposure;
+- last-owner protection mapped to conflict;
+- invitation acceptance routing through token id and raw token input.
+
+Runtime integration remains pending for PostgreSQL RLS, Redis-backed rate limiting, mandatory audit
+rollback and real repository execution.

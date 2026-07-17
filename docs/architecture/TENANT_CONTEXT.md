@@ -2,9 +2,11 @@
 
 ## Status
 
-Implemented in Epic 002 Phase 10.
+Implemented in Epic 002 Phase 10 and consumed by PostgreSQL RLS in Phase 11 and Organization HTTP
+workflows in Phase 14.
 
-This document defines the canonical tenant execution context for Seneve. PostgreSQL Row-Level Security is intentionally deferred to Phase 11 and must consume this context instead of defining a separate tenant model.
+This document defines the canonical tenant execution context for Seneve. PostgreSQL Row-Level
+Security consumes this context instead of defining a separate tenant model.
 
 ## Purpose
 
@@ -146,13 +148,13 @@ Audit must not infer privileged access from client input. Privileged audit field
 
 ## RLS Boundary
 
-Phase 10 explicitly does not implement:
+Epic 002 Phase 11 implements PostgreSQL RLS through a dedicated transaction boundary that consumes
+this context.
 
-- HTTP tenant middleware;
-- HTTP tenant headers;
-- controller integration.
-
-Epic 002 Phase 11 implements PostgreSQL RLS through a dedicated transaction boundary that consumes this context.
+Epic 002 Phase 14 Organization HTTP routes establish tenant context only after bearer
+authentication, membership lookup and permission evaluation. Path `organizationId` identifies the
+target resource; it does not by itself authorize tenant execution. Client headers may not establish
+platform-administrator, cross-tenant or privileged modes.
 
 ## Testing Requirements
 

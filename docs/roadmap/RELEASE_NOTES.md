@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+### Epic 002 Phase 14 - Organization HTTP API
+
+- Added the transport-independent Organization application service package.
+- Added the NestJS Organization HTTP module with organization, membership, invitation and
+  ownership-transfer routes.
+- Added DTO validation, response mapping, public error mapping and OpenAPI-discoverable controller
+  metadata for Organization APIs.
+- Integrated Organization HTTP workflows with the Permission Evaluation Service, Tenant Context
+  Engine, tenant-aware transaction boundary, RLS-ready repositories and mandatory audit event
+  recording.
+- Added invitation token transport rules that keep raw invitation tokens out of HTTP responses,
+  logs, persistence and audit records.
+- Added Supertest coverage for organization creation, permission denial mapping, invitation token
+  redaction, last-owner protection mapping and invitation acceptance routing.
+- PostgreSQL, Redis, RLS and audit-backed Organization HTTP runtime validation remains pending until
+  a complete runtime environment is available.
+
 ### Epic 002 Phase 13 - HTTP Authentication API
 
 - Added the NestJS authentication HTTP module with registration, login, refresh, logout,
@@ -73,7 +90,7 @@
 - Official GitHub remote has not been provided or confirmed.
 - GitHub Actions has not run remotely.
 - Docker image build and Docker Compose startup validation have not run locally because Docker was unavailable.
-- Epic 002 Phase 13 has no Organization HTTP APIs, frontend login pages, browser fingerprinting,
+- Epic 002 Phase 14 has no frontend login or organization pages, browser fingerprinting,
   external email-provider delivery, invitation delivery, notification outbox, authenticated password
   change, authorization persistence, custom role persistence, production role provisioning
   automation, audit HTTP endpoints, audit UI, export files, retention deletion jobs, SIEM

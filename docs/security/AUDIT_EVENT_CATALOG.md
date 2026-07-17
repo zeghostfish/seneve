@@ -1,7 +1,8 @@
 # Audit Event Catalog
 
-Phase 13 HTTP handlers pass trusted request context to Identity workflows. Controllers must not
-construct arbitrary audit records directly.
+Phase 13 HTTP handlers pass trusted request context to Identity workflows. Phase 14 Organization
+HTTP handlers pass trusted request and tenant context to Organization application services.
+Controllers must not construct arbitrary audit records directly.
 
 ## Status
 
@@ -68,6 +69,15 @@ Every audit event uses an immutable name and explicit version. Version `1` is th
 | `INVITATION_EXPIRED`      | 1       |
 | `INVITATION_ACCEPTED`     | 1       |
 | `OWNERSHIP_TRANSFERRED`   | 1       |
+
+## Organization HTTP Audit Integration
+
+Phase 14 maps Organization domain events to audit records through the Audit application boundary.
+Mandatory audit applies to organization creation, lifecycle transitions, membership mutations,
+invitation creation/revocation/acceptance and ownership transfer.
+
+The HTTP layer may supply correlation and request context, but actor, tenant and privileged metadata
+must come from trusted authentication, tenant-context and authorization boundaries.
 
 ## Authorization and Tenancy Events
 

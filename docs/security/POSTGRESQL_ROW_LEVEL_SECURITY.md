@@ -73,6 +73,18 @@ Responsibilities:
 
 Repositories must not issue independent tenant-setting SQL.
 
+## Organization HTTP Integration
+
+Epic 002 Phase 14 routes organization-scoped mutations through Organization application services,
+which establish Tenant Context before calling the tenant-aware Prisma transaction boundary.
+
+The HTTP layer must not use migration or RLS-bypass database credentials. API tests that exercise
+Organization routes must use the runtime application role once PostgreSQL integration is available.
+
+`GET /organizations` is a controlled access-index query for organizations reachable by the
+authenticated identity. After a concrete organization is selected, tenant-owned resources must be
+read or mutated under tenant context and RLS.
+
 ## Bootstrap Flows
 
 ### Organization Creation
