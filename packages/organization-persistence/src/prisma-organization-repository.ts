@@ -13,6 +13,7 @@ import type {
   PersistedOrganizationCreate,
   PersistedOrganizationInvitationReadModel,
   PersistedOrganizationMembershipReadModel,
+  PersistedOrganizationProfileUpdate,
   PersistedOrganizationReadModel,
   PersistedOrganizationStatusUpdate,
   PersistedOwnershipTransfer,
@@ -85,6 +86,56 @@ export class PrismaOrganizationRepository implements OrganizationRepository {
     });
 
     return organization ? toOrganizationReadModel(organization) : null;
+  }
+
+  async listOrganizationsForIdentity(
+    identityId: string,
+  ): Promise<readonly PersistedOrganizationReadModel[]> {
+    const memberships = await this.prisma.organizationMembership.findMany({
+      where: {
+        identityId,
+        status: {
+          not: 'REMOVED',
+        },
+      },
+      include: {
+        organization: {
+          include: organizationInclude,
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    return memberships.map((membership) => toOrganizationReadModel(membership.organization));
+  }
+
+  async updateOrganizationProfile(
+    input: PersistedOrganizationProfileUpdate,
+  ): Promise<PersistenceMutationResult> {
+    const result = await this.prisma.organization.updateMany({
+      where: {
+        id: input.organizationId,
+        version: input.expectedVersion,
+      },
+      data: {
+        displayName: input.displayName,
+        slug: input.slug,
+        defaultLocale: input.defaultLocale,
+        timezone: input.timezone,
+        updatedAt: input.changedAt,
+        version: {
+          increment: 1,
+        },
+      },
+    });
+
+    if (result.count === 1) {
+      return { outcome: 'UPDATED' };
+    }
+
+    return this.exists('organization', input.organizationId);
   }
 
   async updateOrganizationStatus(
@@ -294,6 +345,20 @@ export class PrismaOrganizationInvitationRepository implements OrganizationInvit
     });
   }
 
+  async findInvitationByToken(input: {
+    readonly tokenId: string;
+    readonly tokenHash: string;
+  }): Promise<PersistedOrganizationInvitationReadModel | null> {
+    const invitation = await this.prisma.organizationInvitation.findFirst({
+      where: {
+        tokenId: input.tokenId,
+        tokenHash: input.tokenHash,
+      },
+    });
+
+    return invitation ? toInvitationReadModel(invitation) : null;
+  }
+
   async revokeInvitation(input: PersistedInvitationMutation): Promise<PersistenceMutationResult> {
     const result = await this.prisma.organizationInvitation.updateMany({
       where: {
@@ -455,6 +520,32 @@ export class PrismaOrganizationUnitOfWork {
         memberships: new PrismaOrganizationMembershipRepository(tx),
         invitations: new PrismaOrganizationInvitationRepository(tx),
       }),
+    );
+  }
+}
+
+export class PrismaOrganizationRlsUnitOfWork {
+  constructor(
+    private readonly tenantBoundary: {
+      transaction<T>(
+        work: (tx: Prisma.TransactionClient) => Promise<T>,
+        options?: { readonly operation?: string; readonly tenantId?: string },
+      ): Promise<T>;
+    },
+  ) {}
+
+  async transaction<T>(
+    work: (repositories: OrganizationPersistenceRepositories) => Promise<T>,
+    options: { readonly operation?: string; readonly tenantId?: string } = {},
+  ): Promise<T> {
+    return this.tenantBoundary.transaction(
+      (tx) =>
+        work({
+          organizations: new PrismaOrganizationRepository(tx),
+          memberships: new PrismaOrganizationMembershipRepository(tx),
+          invitations: new PrismaOrganizationInvitationRepository(tx),
+        }),
+      options,
     );
   }
 }

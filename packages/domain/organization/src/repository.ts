@@ -30,6 +30,16 @@ export interface PersistedOrganizationStatusUpdate {
   readonly changedAt: Date;
 }
 
+export interface PersistedOrganizationProfileUpdate {
+  readonly organizationId: string;
+  readonly expectedVersion: number;
+  readonly displayName: string;
+  readonly slug: string;
+  readonly defaultLocale: string;
+  readonly timezone: string;
+  readonly changedAt: Date;
+}
+
 export interface PersistedOrganizationReadModel {
   readonly id: string;
   readonly publicId: string | null;
@@ -142,6 +152,12 @@ export interface OrganizationRepository {
   createOrganization(input: PersistedOrganizationCreate): Promise<void>;
   findOrganizationById(organizationId: string): Promise<PersistedOrganizationReadModel | null>;
   findOrganizationBySlug(slug: string): Promise<PersistedOrganizationReadModel | null>;
+  listOrganizationsForIdentity(
+    identityId: string,
+  ): Promise<readonly PersistedOrganizationReadModel[]>;
+  updateOrganizationProfile(
+    input: PersistedOrganizationProfileUpdate,
+  ): Promise<PersistenceMutationResult>;
   updateOrganizationStatus(
     input: PersistedOrganizationStatusUpdate,
   ): Promise<PersistenceMutationResult>;
@@ -157,6 +173,10 @@ export interface OrganizationMembershipRepository {
 
 export interface OrganizationInvitationRepository {
   createInvitation(input: PersistedInvitationCreate): Promise<void>;
+  findInvitationByToken(input: {
+    readonly tokenId: string;
+    readonly tokenHash: string;
+  }): Promise<PersistedOrganizationInvitationReadModel | null>;
   revokeInvitation(input: PersistedInvitationMutation): Promise<PersistenceMutationResult>;
   expireInvitation(input: PersistedInvitationMutation): Promise<PersistenceMutationResult>;
   acceptInvitation(input: PersistedInvitationMutation): Promise<PersistenceMutationResult>;

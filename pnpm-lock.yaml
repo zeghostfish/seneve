@@ -65,6 +65,9 @@ importers:
       '@seneve/domain-identity':
         specifier: workspace:*
         version: link:../../packages/domain/identity
+      '@seneve/domain-organization':
+        specifier: workspace:*
+        version: link:../../packages/domain/organization
       '@seneve/identity-application':
         specifier: workspace:*
         version: link:../../packages/identity-application
@@ -74,6 +77,12 @@ importers:
       '@seneve/identity-persistence':
         specifier: workspace:*
         version: link:../../packages/identity-persistence
+      '@seneve/organization-application':
+        specifier: workspace:*
+        version: link:../../packages/organization-application
+      '@seneve/organization-persistence':
+        specifier: workspace:*
+        version: link:../../packages/organization-persistence
       '@seneve/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -233,6 +242,27 @@ importers:
       '@seneve/domain-identity':
         specifier: workspace:*
         version: link:../domain/identity
+
+  packages/organization-application:
+    dependencies:
+      '@seneve/audit-application':
+        specifier: workspace:*
+        version: link:../audit-application
+      '@seneve/authorization-application':
+        specifier: workspace:*
+        version: link:../authorization-application
+      '@seneve/domain-identity':
+        specifier: workspace:*
+        version: link:../domain/identity
+      '@seneve/domain-organization':
+        specifier: workspace:*
+        version: link:../domain/organization
+      '@seneve/identity-application':
+        specifier: workspace:*
+        version: link:../identity-application
+      '@seneve/tenant-context':
+        specifier: workspace:*
+        version: link:../tenant-context
 
   packages/organization-persistence:
     dependencies:

@@ -89,6 +89,10 @@ export class Membership {
     });
   }
 
+  static rehydrate(snapshot: MembershipSnapshot): Membership {
+    return new Membership({ ...snapshot });
+  }
+
   get id(): string {
     return this.snapshot.id;
   }
@@ -191,6 +195,10 @@ export class Invitation {
       revokedAt: null,
       acceptedAt: null,
     });
+  }
+
+  static rehydrate(snapshot: InvitationSnapshot): Invitation {
+    return new Invitation({ ...snapshot });
   }
 
   get id(): string {
@@ -342,6 +350,23 @@ export class Organization {
     });
 
     return organization;
+  }
+
+  static rehydrate(snapshot: OrganizationSnapshot): Organization {
+    return new Organization(
+      OrganizationId.from(snapshot.id),
+      snapshot.publicId,
+      OrganizationProfile.create(snapshot.profile),
+      snapshot.status,
+      snapshot.createdAt,
+      snapshot.activatedAt,
+      snapshot.suspendedAt,
+      snapshot.closedAt,
+      snapshot.archivedAt,
+      snapshot.memberships.map((membership) => Membership.rehydrate(membership)),
+      snapshot.invitations.map((invitation) => Invitation.rehydrate(invitation)),
+      [],
+    );
   }
 
   activate(activatedAt: Date, metadata: OrganizationEventMetadata): Organization {
