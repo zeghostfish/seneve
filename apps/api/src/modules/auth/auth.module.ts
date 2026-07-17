@@ -276,6 +276,7 @@ import { RedisAuthRateLimiter } from './rate-limits/auth-rate-limiter.js';
     AccessTokenGuard,
     CsrfGuard,
   ],
+  exports: [AccessTokenGuard, ACCESS_TOKEN_VERIFIER, AUTH_SESSION_VALIDATOR],
 })
 export class AuthModule {}
 
