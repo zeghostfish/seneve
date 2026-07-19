@@ -59,9 +59,27 @@ importers:
       '@seneve/audit-persistence':
         specifier: workspace:*
         version: link:../../packages/audit-persistence
+      '@seneve/campaign-application':
+        specifier: workspace:*
+        version: link:../../packages/campaign-application
+      '@seneve/campaign-persistence':
+        specifier: workspace:*
+        version: link:../../packages/campaign-persistence
+      '@seneve/candidate-application':
+        specifier: workspace:*
+        version: link:../../packages/candidate-application
+      '@seneve/candidate-persistence':
+        specifier: workspace:*
+        version: link:../../packages/candidate-persistence
       '@seneve/config':
         specifier: workspace:*
         version: link:../../packages/config
+      '@seneve/domain-campaign':
+        specifier: workspace:*
+        version: link:../../packages/domain/campaign
+      '@seneve/domain-candidate':
+        specifier: workspace:*
+        version: link:../../packages/domain/candidate
       '@seneve/domain-identity':
         specifier: workspace:*
         version: link:../../packages/domain/identity
@@ -178,6 +196,12 @@ importers:
       '@seneve/domain-audit':
         specifier: workspace:*
         version: link:../domain/audit
+      '@seneve/domain-campaign':
+        specifier: workspace:*
+        version: link:../domain/campaign
+      '@seneve/domain-candidate':
+        specifier: workspace:*
+        version: link:../domain/candidate
       '@seneve/domain-organization':
         specifier: workspace:*
         version: link:../domain/organization
@@ -212,11 +236,82 @@ importers:
         specifier: workspace:*
         version: link:../tenant-context
 
+  packages/campaign-application:
+    dependencies:
+      '@seneve/authorization-application':
+        specifier: workspace:*
+        version: link:../authorization-application
+      '@seneve/domain-campaign':
+        specifier: workspace:*
+        version: link:../domain/campaign
+      '@seneve/domain-identity':
+        specifier: workspace:*
+        version: link:../domain/identity
+      '@seneve/domain-organization':
+        specifier: workspace:*
+        version: link:../domain/organization
+      '@seneve/tenant-context':
+        specifier: workspace:*
+        version: link:../tenant-context
+
+  packages/campaign-persistence:
+    dependencies:
+      '@prisma/client':
+        specifier: ^6.19.3
+        version: 6.19.3(prisma@6.19.3(typescript@5.9.3))(typescript@5.9.3)
+      '@seneve/domain-campaign':
+        specifier: workspace:*
+        version: link:../domain/campaign
+      '@seneve/organization-persistence':
+        specifier: workspace:*
+        version: link:../organization-persistence
+
+  packages/candidate-application:
+    dependencies:
+      '@seneve/authorization-application':
+        specifier: workspace:*
+        version: link:../authorization-application
+      '@seneve/domain-campaign':
+        specifier: workspace:*
+        version: link:../domain/campaign
+      '@seneve/domain-candidate':
+        specifier: workspace:*
+        version: link:../domain/candidate
+      '@seneve/domain-identity':
+        specifier: workspace:*
+        version: link:../domain/identity
+      '@seneve/domain-organization':
+        specifier: workspace:*
+        version: link:../domain/organization
+      '@seneve/tenant-context':
+        specifier: workspace:*
+        version: link:../tenant-context
+
+  packages/candidate-persistence:
+    dependencies:
+      '@prisma/client':
+        specifier: ^6.19.3
+        version: 6.19.3(prisma@6.19.3(typescript@5.9.3))(typescript@5.9.3)
+      '@seneve/domain-candidate':
+        specifier: workspace:*
+        version: link:../domain/candidate
+      '@seneve/organization-persistence':
+        specifier: workspace:*
+        version: link:../organization-persistence
+
   packages/config: {}
 
   packages/contracts: {}
 
   packages/domain/audit: {}
+
+  packages/domain/campaign: {}
+
+  packages/domain/candidate:
+    dependencies:
+      '@seneve/domain-campaign':
+        specifier: workspace:*
+        version: link:../campaign
 
   packages/domain/identity: {}
 
