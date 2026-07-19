@@ -9,7 +9,7 @@ Candidate work before the Voting bounded context begins.
 
 Phase 19 is open.
 
-Completed in the current restricted environment:
+Completed through Phase 19D:
 
 - verified branch: `feature/identity-organizations`;
 - verified latest existing commit: `e867803 docs(api): document organization api and authorization`;
@@ -17,12 +17,23 @@ Completed in the current restricted environment:
 - recorded local environment versions for transfer diagnostics;
 - added a categorized file inventory for selective staging in a writable Git environment;
 - reran static validation;
-- reran focused non-runtime tests.
+- reran focused non-runtime tests;
+- reconstructed the repository in a writable location;
+- recovered the Brand, Phase 15, Phase 16, Phase 17, Phase 18 and Phase 19 documentation batches
+  into Git commits;
+- reached a clean working tree after commit recovery;
+- created the post-recovery repository backup.
 
-Blocked in the current restricted environment:
+Completed for Phase 19E preparation:
 
-- Git metadata writes;
-- selective commit creation;
+- added the Phase 19E runtime execution playbook;
+- added a strict `scripts/run-phase19e.sh` validation runner;
+- added GitHub Actions CI configuration for install, Prisma, lint, typecheck, test and build gates;
+- refined Docker Compose PostgreSQL and Redis development services;
+- documented the runtime execution sequence and manual smoke-test checklists.
+
+Pending for Phase 19E runtime execution:
+
 - full test suite with runtime services;
 - production build;
 - PostgreSQL validation;
@@ -31,6 +42,9 @@ Blocked in the current restricted environment:
 - API and web runtime smoke tests;
 - GitHub publication;
 - remote CI.
+
+Phase 19 itself is not complete until the Phase 19E runtime execution has passed in a capable
+environment and GitHub/CI status has been resolved.
 
 ## Preservation Archive
 
@@ -157,8 +171,8 @@ docs/roadmap/PHASE-19-FILE-INVENTORY.md
 
 Phase 19 can close only when:
 
-- Git write access is restored;
-- Brand, Phase 15, Phase 16, Phase 17 and Phase 18 batches are committed in order;
+- Phase 19D commits are preserved;
+- Phase 19E preparation artifacts are committed;
 - the working tree is clean;
 - the full test suite executes;
 - the production build executes;

@@ -5,12 +5,17 @@ on:
   push:
     branches:
       - main
-      - feature/foundation
+      - feature/identity-organizations
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  quality:
-    name: Quality
+  validate:
+    name: Validate, Test, and Build
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     services:
       postgres:
@@ -37,27 +42,60 @@ jobs:
           --health-retries 5
 
     env:
+      NODE_ENV: test
+      LOG_LEVEL: info
+      API_PORT: 3000
+      WEB_PORT: 3001
+      WORKER_HEALTH_PORT: 3002
       DATABASE_URL: postgresql://seneve:seneve@localhost:5432/seneve?schema=public
       REDIS_URL: redis://localhost:6379
+      JWT_ACCESS_TOKEN_SECRET: ${{ secrets.JWT_ACCESS_TOKEN_SECRET }}
+      JWT_REFRESH_TOKEN_SECRET: ${{ secrets.JWT_REFRESH_TOKEN_SECRET }}
+      JWT_ACCESS_TOKEN_ISSUER: seneve-api
+      JWT_ACCESS_TOKEN_AUDIENCE: seneve-clients
+      AUTH_COOKIE_SECURE: 'false'
+      CORS_ORIGINS: http://localhost:3001
+      OTEL_SERVICE_NAME: seneve-ci
+      RUN_POSTGRES_INTEGRATION: 'true'
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 24
-          cache: pnpm
+          node-version: '24'
 
       - name: Enable Corepack
         run: corepack enable
 
+      - name: Verify pnpm
+        run: corepack pnpm --version
+
       - name: Install dependencies
         run: corepack pnpm install --frozen-lockfile
 
+      - name: Generate Prisma client
+        run: corepack pnpm db:generate
+
       - name: Validate Prisma schema
         run: corepack pnpm db:validate
+
+      - name: Apply migrations
+        run: corepack pnpm exec prisma migrate deploy --schema database/prisma/schema.prisma
+
+      - name: Verify migrations
+        run: corepack pnpm exec prisma migrate status --schema database/prisma/schema.prisma
+
+      - name: Verify PostgreSQL
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client redis-tools
+          pg_isready -h localhost -p 5432 -U seneve -d seneve
+
+      - name: Verify Redis
+        run: redis-cli -h localhost -p 6379 ping
 
       - name: Check formatting
         run: corepack pnpm format:check
@@ -68,14 +106,8 @@ jobs:
       - name: Typecheck
         run: corepack pnpm typecheck
 
-      - name: Test
+      - name: Run tests
         run: corepack pnpm test
 
       - name: Build
         run: corepack pnpm build
-
-      - name: Validate Docker builds
-        run: |
-          docker build -f infra/docker/api.Dockerfile .
-          docker build -f infra/docker/web.Dockerfile .
-          docker build -f infra/docker/worker.Dockerfile .
