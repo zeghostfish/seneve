@@ -1,0 +1,19 @@
+{
+  "name": "@seneve/candidate-application",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@seneve/authorization-application": "workspace:*",
+    "@seneve/domain-campaign": "workspace:*",
+    "@seneve/domain-candidate": "workspace:*",
+    "@seneve/domain-identity": "workspace:*",
+    "@seneve/domain-organization": "workspace:*",
+    "@seneve/tenant-context": "workspace:*"
+  }
+}
