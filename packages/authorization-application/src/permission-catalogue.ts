@@ -27,7 +27,23 @@ export type PermissionId =
   | 'ownership:transfer'
   | 'event:create'
   | 'campaign:create'
+  | 'campaign:read'
+  | 'campaign:update'
+  | 'campaign:schedule'
+  | 'campaign:activate'
+  | 'campaign:pause'
+  | 'campaign:complete'
+  | 'campaign:cancel'
+  | 'campaign:archive'
+  | 'campaign:manage-rules'
   | 'candidate:create'
+  | 'candidate:read'
+  | 'candidate:update'
+  | 'candidate:manage-status'
+  | 'candidate:reorder'
+  | 'candidate:withdraw'
+  | 'candidate:disqualify'
+  | 'candidate:archive'
   | 'billing:view'
   | 'billing:update'
   | 'system:admin';
@@ -87,8 +103,40 @@ export const permissionCatalogue: readonly PermissionDefinition[] = [
     scope: 'organization',
   },
   { id: 'event:create', description: 'Create future events.', scope: 'organization' },
-  { id: 'campaign:create', description: 'Create future campaigns.', scope: 'organization' },
-  { id: 'candidate:create', description: 'Create future candidates.', scope: 'organization' },
+  { id: 'campaign:create', description: 'Create campaigns.', scope: 'organization' },
+  { id: 'campaign:read', description: 'Read campaigns.', scope: 'organization' },
+  { id: 'campaign:update', description: 'Update campaign details.', scope: 'organization' },
+  { id: 'campaign:schedule', description: 'Schedule campaigns.', scope: 'organization' },
+  { id: 'campaign:activate', description: 'Activate campaigns.', scope: 'organization' },
+  { id: 'campaign:pause', description: 'Pause campaigns.', scope: 'organization' },
+  { id: 'campaign:complete', description: 'Complete campaigns.', scope: 'organization' },
+  { id: 'campaign:cancel', description: 'Cancel campaigns.', scope: 'organization' },
+  { id: 'campaign:archive', description: 'Archive campaigns.', scope: 'organization' },
+  {
+    id: 'campaign:manage-rules',
+    description: 'Manage campaign voting and result-visibility rules.',
+    scope: 'organization',
+  },
+  { id: 'candidate:create', description: 'Create campaign candidates.', scope: 'organization' },
+  { id: 'candidate:read', description: 'Read campaign candidates.', scope: 'organization' },
+  {
+    id: 'candidate:update',
+    description: 'Update candidate presentation data.',
+    scope: 'organization',
+  },
+  {
+    id: 'candidate:manage-status',
+    description: 'Manage candidate eligibility and suspension.',
+    scope: 'organization',
+  },
+  { id: 'candidate:reorder', description: 'Reorder campaign candidates.', scope: 'organization' },
+  { id: 'candidate:withdraw', description: 'Withdraw campaign candidates.', scope: 'organization' },
+  {
+    id: 'candidate:disqualify',
+    description: 'Disqualify campaign candidates.',
+    scope: 'organization',
+  },
+  { id: 'candidate:archive', description: 'Archive campaign candidates.', scope: 'organization' },
   { id: 'billing:view', description: 'View billing information.', scope: 'organization' },
   { id: 'billing:update', description: 'Update billing information.', scope: 'organization' },
   {
@@ -119,7 +167,23 @@ export const organizationRolePermissions: Readonly<
     'ownership:transfer',
     'event:create',
     'campaign:create',
+    'campaign:read',
+    'campaign:update',
+    'campaign:schedule',
+    'campaign:activate',
+    'campaign:pause',
+    'campaign:complete',
+    'campaign:cancel',
+    'campaign:archive',
+    'campaign:manage-rules',
     'candidate:create',
+    'candidate:read',
+    'candidate:update',
+    'candidate:manage-status',
+    'candidate:reorder',
+    'candidate:withdraw',
+    'candidate:disqualify',
+    'candidate:archive',
     'billing:view',
     'billing:update',
   ],
@@ -136,13 +200,65 @@ export const organizationRolePermissions: Readonly<
     'invitation:revoke',
     'event:create',
     'campaign:create',
+    'campaign:read',
+    'campaign:update',
+    'campaign:schedule',
+    'campaign:activate',
+    'campaign:pause',
+    'campaign:complete',
+    'campaign:cancel',
+    'campaign:archive',
+    'campaign:manage-rules',
     'candidate:create',
+    'candidate:read',
+    'candidate:update',
+    'candidate:manage-status',
+    'candidate:reorder',
+    'candidate:withdraw',
+    'candidate:disqualify',
+    'candidate:archive',
   ],
-  EVENT_MANAGER: ['organization:read', 'event:create', 'campaign:create', 'candidate:create'],
+  EVENT_MANAGER: [
+    'organization:read',
+    'event:create',
+    'campaign:create',
+    'campaign:read',
+    'campaign:update',
+    'campaign:schedule',
+    'campaign:activate',
+    'campaign:pause',
+    'campaign:complete',
+    'campaign:cancel',
+    'campaign:archive',
+    'campaign:manage-rules',
+    'candidate:create',
+    'candidate:read',
+    'candidate:update',
+    'candidate:manage-status',
+    'candidate:reorder',
+    'candidate:withdraw',
+    'candidate:disqualify',
+    'candidate:archive',
+  ],
   FINANCE_MANAGER: ['organization:read', 'billing:view', 'billing:update'],
-  CONTENT_MANAGER: ['organization:read', 'candidate:create'],
-  VIEWER: ['organization:read'],
-  AUDITOR: ['organization:read', 'membership:read', 'invitation:read', 'billing:view'],
+  CONTENT_MANAGER: [
+    'organization:read',
+    'campaign:read',
+    'campaign:update',
+    'candidate:create',
+    'candidate:read',
+    'candidate:update',
+    'candidate:reorder',
+  ],
+  VIEWER: ['organization:read', 'campaign:read', 'candidate:read'],
+  AUDITOR: [
+    'organization:read',
+    'membership:read',
+    'invitation:read',
+    'campaign:read',
+    'candidate:read',
+    'billing:view',
+  ],
 };
 
 export const platformRolePermissions: Readonly<Record<PlatformRole, readonly PermissionId[]>> = {

@@ -109,6 +109,44 @@ enum OrganizationInvitationStatus {
   EXPIRED
 }
 
+enum CampaignStatus {
+  DRAFT
+  SCHEDULED
+  ACTIVE
+  PAUSED
+  COMPLETED
+  CANCELLED
+  ARCHIVED
+}
+
+enum CampaignVisibility {
+  PRIVATE
+  UNLISTED
+  PUBLIC
+}
+
+enum CampaignVotingMode {
+  FREE
+  PAID
+  HYBRID
+}
+
+enum CampaignResultsVisibility {
+  HIDDEN
+  LIVE
+  AFTER_CAMPAIGN
+  SCHEDULED
+}
+
+enum CandidateStatus {
+  DRAFT
+  ELIGIBLE
+  SUSPENDED
+  WITHDRAWN
+  DISQUALIFIED
+  ARCHIVED
+}
+
 model Identity {
   id                          String                   @id @default(uuid()) @db.Uuid
   status                      IdentityStatus
@@ -298,10 +336,79 @@ model Organization {
   archivedAt    DateTime?                @map("archived_at") @db.Timestamptz(6)
   memberships   OrganizationMembership[]
   invitations   OrganizationInvitation[]
+  campaigns     Campaign[]
+  candidates    Candidate[]
 
   @@index([status], map: "idx_organizations_status")
   @@index([slug], map: "idx_organizations_slug")
   @@map("organizations")
+}
+
+model Campaign {
+  id                        String                    @id @default(uuid()) @db.Uuid
+  organizationId            String                    @map("organization_id") @db.Uuid
+  name                      String
+  slug                      String
+  description               String?
+  status                    CampaignStatus
+  visibility                CampaignVisibility
+  timezone                  String
+  locale                    String
+  startsAt                  DateTime                  @map("starts_at") @db.Timestamptz(6)
+  endsAt                    DateTime                  @map("ends_at") @db.Timestamptz(6)
+  votingMode                CampaignVotingMode        @map("voting_mode")
+  votesPerVoter             Int                       @map("votes_per_voter")
+  allowMultipleCandidates   Boolean                   @map("allow_multiple_candidates")
+  requiresEmailVerification Boolean                   @map("requires_email_verification")
+  resultsVisibility         CampaignResultsVisibility @map("results_visibility")
+  resultRevealAt            DateTime?                 @map("result_reveal_at") @db.Timestamptz(6)
+  createdBy                 String                    @map("created_by") @db.Uuid
+  createdAt                 DateTime                  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                 DateTime                  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  archivedAt                DateTime?                 @map("archived_at") @db.Timestamptz(6)
+  cancelledAt               DateTime?                 @map("cancelled_at") @db.Timestamptz(6)
+  version                   Int                       @default(1)
+  organization              Organization              @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  candidates                Candidate[]
+
+  @@unique([organizationId, slug], map: "uq_campaigns_organization_slug")
+  @@index([organizationId], map: "idx_campaigns_organization_id")
+  @@index([organizationId, status], map: "idx_campaigns_organization_status")
+  @@index([organizationId, visibility], map: "idx_campaigns_organization_visibility")
+  @@index([organizationId, createdAt, id], map: "idx_campaigns_organization_created_id")
+  @@index([organizationId, startsAt], map: "idx_campaigns_organization_starts_at")
+  @@map("campaigns")
+}
+
+model Candidate {
+  id                String          @id @default(uuid()) @db.Uuid
+  organizationId    String          @map("organization_id") @db.Uuid
+  campaignId        String          @map("campaign_id") @db.Uuid
+  displayName       String          @map("display_name")
+  slug              String
+  shortDescription  String?         @map("short_description")
+  description       String?
+  status            CandidateStatus
+  position          Int
+  imageAssetId      String?         @map("image_asset_id")
+  externalReference String?         @map("external_reference")
+  metadata          Json            @default("{}")
+  createdBy         String          @map("created_by") @db.Uuid
+  createdAt         DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+  statusReason      String?         @map("status_reason")
+  archivedAt        DateTime?       @map("archived_at") @db.Timestamptz(6)
+  version           Int             @default(1)
+  organization      Organization    @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  campaign          Campaign        @relation(fields: [campaignId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([campaignId, slug], map: "uq_candidates_campaign_slug")
+  @@unique([campaignId, position], map: "uq_candidates_campaign_position")
+  @@index([organizationId, campaignId], map: "idx_candidates_organization_campaign")
+  @@index([organizationId, campaignId, status], map: "idx_candidates_organization_campaign_status")
+  @@index([campaignId, position, createdAt, id], map: "idx_candidates_campaign_position_created_id")
+  @@index([organizationId, createdAt], map: "idx_candidates_organization_created_at")
+  @@map("candidates")
 }
 
 model OrganizationMembership {

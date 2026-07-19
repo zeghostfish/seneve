@@ -1,5 +1,5 @@
 {
-  "name": "@seneve/audit-application",
+  "name": "@seneve/campaign-application",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -9,11 +9,10 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
-    "@seneve/domain-audit": "workspace:*",
+    "@seneve/authorization-application": "workspace:*",
     "@seneve/domain-campaign": "workspace:*",
-    "@seneve/domain-candidate": "workspace:*",
+    "@seneve/domain-identity": "workspace:*",
     "@seneve/domain-organization": "workspace:*",
-    "@seneve/identity-application": "workspace:*",
     "@seneve/tenant-context": "workspace:*"
   }
 }

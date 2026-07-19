@@ -1,10 +1,14 @@
 import type { OrganizationDomainEvent } from '@seneve/domain-organization';
+import type { CampaignDomainEvent } from '@seneve/domain-campaign';
+import type { CandidateDomainEvent } from '@seneve/domain-candidate';
 import type { SecurityEventInput, SecurityEventRecorder } from '@seneve/identity-application';
 
 import type { AuditAppendResult } from './audit-contracts.js';
 import { AppendAuditRecordService } from './audit-service.js';
 import {
   mapIdentitySecurityEventToAudit,
+  mapCampaignDomainEventToAudit,
+  mapCandidateDomainEventToAudit,
   mapOrganizationDomainEventToAudit,
 } from './event-mappers.js';
 
@@ -35,5 +39,21 @@ export class OrganizationAuditEventRecorder {
 
   async record(event: OrganizationDomainEvent): Promise<AuditAppendResult> {
     return this.audit.append(mapOrganizationDomainEventToAudit(event));
+  }
+}
+
+export class CampaignAuditEventRecorder {
+  constructor(private readonly audit: AppendAuditRecordService) {}
+
+  async record(event: CampaignDomainEvent): Promise<AuditAppendResult> {
+    return this.audit.append(mapCampaignDomainEventToAudit(event));
+  }
+}
+
+export class CandidateAuditEventRecorder {
+  constructor(private readonly audit: AppendAuditRecordService) {}
+
+  async record(event: CandidateDomainEvent): Promise<AuditAppendResult> {
+    return this.audit.append(mapCandidateDomainEventToAudit(event));
   }
 }

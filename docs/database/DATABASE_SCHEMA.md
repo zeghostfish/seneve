@@ -159,6 +159,59 @@ Business validations:
 - a user account does not belong directly to one organization
 - credentials and tokens are never stored on `users`
 
+### campaigns
+
+Purpose: tenant-scoped configuration for one voting operation owned by an organization.
+
+Fields:
+
+- `id`: UUID, primary key
+- `organization_id`: UUID, required
+- `name`: text, required
+- `slug`: text, required, normalized
+- `description`: text, nullable
+- `status`: enum `CampaignStatus`
+- `visibility`: enum `CampaignVisibility`
+- `timezone`: text, required
+- `locale`: text, required
+- `starts_at`: timestamp with time zone
+- `ends_at`: timestamp with time zone
+- preliminary voting-rule fields
+- result-visibility fields
+- `created_by`: UUID, required
+- `created_at`: timestamp with time zone
+- `updated_at`: timestamp with time zone
+- `archived_at`: timestamp with time zone, nullable
+- `cancelled_at`: timestamp with time zone, nullable
+- `version`: integer, optimistic concurrency field
+
+Indexes and constraints:
+
+- primary key `id`
+- unique `uq_campaigns_organization_slug` on `(organization_id, slug)`
+- `idx_campaigns_organization_id`
+- `idx_campaigns_organization_status`
+- `idx_campaigns_organization_visibility`
+- `idx_campaigns_organization_created_id`
+- `idx_campaigns_organization_starts_at`
+- schedule check `starts_at < ends_at`
+- result-visibility consistency check
+- vote-count bounds check
+
+Tenant isolation:
+
+- protected by PostgreSQL Row-Level Security
+- scoped by direct `organization_id`
+- application access must use Tenant Context and tenant-aware transactions
+
+Deferred:
+
+- candidates
+- votes
+- payments
+- result computation
+- public voting routes
+
 ### identity_emails
 
 Purpose: email addresses attached to an identity, including the primary login email used in V1.
@@ -1813,6 +1866,54 @@ The exact enum values must be finalized with migrations. Initial required enums 
 - `NotificationStatus`
 - `ReportType`
 - `ReportStatus`
+
+## Implemented Candidate Tables
+
+### `candidates`
+
+Implemented in Epic 003 Phase 17.
+
+Purpose:
+
+- Stores campaign-scoped candidate management records for one tenant organization.
+- Supports deterministic candidate ordering and lifecycle transitions.
+- Preserves historical candidate outcomes without normal hard deletion.
+
+Important columns:
+
+- `id`
+- `organization_id`
+- `campaign_id`
+- `display_name`
+- `slug`
+- `short_description`
+- `description`
+- `status`
+- `position`
+- `image_asset_id`
+- `external_reference`
+- `metadata`
+- `created_by`
+- `created_at`
+- `updated_at`
+- `status_reason`
+- `archived_at`
+- `version`
+
+Constraints and indexes:
+
+- unique `campaign_id`, `slug`
+- unique `campaign_id`, `position`
+- index `organization_id`, `campaign_id`
+- index `organization_id`, `campaign_id`, `status`
+- index `campaign_id`, `position`, `created_at`, `id`
+- index `organization_id`, `created_at`
+
+Isolation:
+
+- direct `organization_id` is present for RLS.
+- `ENABLE ROW LEVEL SECURITY` and `FORCE ROW LEVEL SECURITY` are included in the migration.
+- normal delete policy is denied.
 
 ## Migration Requirements
 

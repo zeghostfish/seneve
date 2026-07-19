@@ -1,0 +1,16 @@
+{
+  "name": "@seneve/campaign-persistence",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.19.3",
+    "@seneve/domain-campaign": "workspace:*",
+    "@seneve/organization-persistence": "workspace:*"
+  }
+}
