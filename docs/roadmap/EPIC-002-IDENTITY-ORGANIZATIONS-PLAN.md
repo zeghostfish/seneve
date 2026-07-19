@@ -4,9 +4,9 @@
 
 Design approved. Local implementation authorized by project-owner waiver.
 
-Implementation must follow the approved phase order. Phase 14 is implemented locally and remains
-limited to the Organization HTTP API. Frontend integration and production PostgreSQL/Redis
-validation remain pending.
+Implementation must follow the approved phase order. Phase 15 is implemented locally and remains
+limited to the frontend authentication and organization integration. Production PostgreSQL/Redis
+validation remains pending.
 
 ## Objective
 
@@ -480,6 +480,42 @@ Not implemented in Phase 14:
 - public developer API.
 - audit HTTP endpoints or audit UI.
 - Playwright end-to-end tests.
+
+### Phase 15 - Frontend Authentication and Organization Integration
+
+Status: implemented locally, commit and runtime validation pending.
+
+Implemented locally:
+
+- centralized frontend API clients for authentication, sessions and organizations.
+- authentication provider with loading, authenticated, unauthenticated, refreshing, expired and
+  error states.
+- in-memory access-token handling with `HttpOnly` refresh-cookie assumptions.
+- registration and login pages.
+- email-verification pending, completion, invalid, expired and resend states.
+- password-reset request and completion pages with generic request feedback.
+- protected authenticated application shell.
+- responsive navigation using the approved Seneve brand assets.
+- organization onboarding for users without an organization.
+- organization listing and switcher.
+- organization overview.
+- membership listing, role update, suspension and removal screens.
+- invitation listing, creation, revocation and token-based acceptance screens.
+- ownership-transfer screen with explicit confirmation.
+- session listing, selected-session revocation, revoke-other-sessions and logout-all UI.
+- lightweight permission-aware UI helpers that preserve backend authority.
+- frontend validation helpers and focused tests for validation, API error behavior and permission
+  identifiers.
+
+Not implemented in Phase 15:
+
+- Campaign, Candidate, Voting, Payment, Fraud or Reporting UI.
+- production email or invitation delivery.
+- Playwright end-to-end tests.
+- frontend audit views.
+- frontend billing, custom-role or API-key screens.
+- persistent client-side refresh-token storage.
+- production PostgreSQL and Redis runtime validation.
 
 ## Confirmed V1 Authentication Decisions
 

@@ -2,6 +2,91 @@
 
 ## Unreleased
 
+### Phase 19 - Runtime Stabilization and Repository Recovery
+
+- Created the Brand through Phase 18 preservation archive for local work pending Git metadata write
+  recovery.
+- Verified the current branch and latest accepted commit before any repository recovery work.
+- Reran static validation and focused non-runtime tests in the restricted environment.
+- Added runtime validation, PostgreSQL RLS validation, Redis validation, CI and security-review
+  documentation.
+- Added a categorized file inventory to support selective staging after repository transfer.
+- Git commits, PostgreSQL validation, Redis validation, full test suite, production build, GitHub
+  publication and remote CI remain pending until a suitable environment is available.
+
+### Epic 003 Phase 18 - Campaign and Candidate Frontend Management
+
+- Added private authenticated Campaign management screens for listing, filtering, creation,
+  overview, settings, lifecycle actions and Phase 16 rule editing.
+- Added private Candidate management screens for listing, creation, editing, lifecycle actions and
+  accessible move-up/move-down reordering.
+- Added centralized Campaign and Candidate frontend API clients.
+- Added Campaign and Candidate status presentation helpers.
+- Added focused frontend tests for API clients, validation, permissions and status presentation.
+- Public voting, vote totals, rankings, payments, fraud controls and public results remain deferred.
+
+### Epic 003 Phase 17 - Candidate Domain and Management Foundation
+
+- Added the `@seneve/domain-candidate` package with the canonical Candidate aggregate, lifecycle
+  transitions, stable domain errors and domain events.
+- Added Candidate Prisma schema and migration with campaign-scoped unique slugs, campaign-scoped
+  positions, indexes, foreign keys and RLS policies.
+- Added `@seneve/candidate-persistence` with explicit Prisma mapping and tenant-aware transaction
+  integration.
+- Added `@seneve/candidate-application` use cases for creation, listing, retrieval, updates,
+  status transitions, archival and full-list reordering.
+- Added Candidate permissions to the central authorization catalogue.
+- Added Candidate audit event names and Candidate domain-event to audit mapping.
+- Added authenticated organization- and campaign-scoped Candidate HTTP endpoints.
+- Added focused Candidate domain, application and controller tests.
+- Voting, Payment, Fraud, SMS, rankings, public candidate pages, public results and public voting
+  endpoints remain deferred.
+
+### Epic 003 Phase 16 - Campaign Domain and Application Foundation
+
+- Added the `@seneve/domain-campaign` package with the canonical Campaign aggregate, schedule,
+  preliminary rules, result-visibility configuration, lifecycle transitions, stable domain errors
+  and domain events.
+- Added Campaign Prisma schema and migration with organization-scoped unique slugs, lifecycle
+  fields, preliminary voting-rule configuration, indexes and RLS policies.
+- Added `@seneve/campaign-persistence` with explicit Prisma mapping and tenant-aware transaction
+  integration.
+- Added `@seneve/campaign-application` use cases for creation, listing, retrieval, updates,
+  scheduling, lifecycle transitions and rule updates.
+- Added Campaign permissions to the central authorization catalogue.
+- Added Campaign audit event names and Campaign domain-event to audit mapping.
+- Added authenticated organization-scoped Campaign HTTP endpoints.
+- Added focused Campaign domain, application and controller tests.
+- Voting, Payment, Fraud, SMS, public results and public voting endpoints remain deferred.
+
+### Epic 002 Phase 15 - Frontend Authentication and Organization Integration
+
+- Added the first authenticated Next.js frontend shell for Seneve.
+- Added centralized web API clients for Authentication, Session and Organization APIs.
+- Added in-memory access-token handling with backend-managed `HttpOnly` refresh-cookie assumptions.
+- Added registration, login, email-verification and password-reset frontend flows.
+- Added protected application shell, responsive navigation and organization switcher.
+- Added organization onboarding, organization listing, organization overview, member management,
+  invitation management, invitation acceptance, ownership-transfer and session-management screens.
+- Added lightweight permission-aware UI helpers while keeping backend authorization authoritative.
+- Added frontend validation helpers and focused tests for validation, API error handling and
+  permission identifiers.
+- PostgreSQL, Redis and full browser runtime validation remain pending in the current sandbox.
+
+### Official Brand Asset Integration
+
+- Added the official Seneve source logo assets under `apps/web/public/brand/master`.
+- Added optimized web logo assets, standalone mark, favicon, PWA icons and Apple touch icon derived
+  from the supplied source files without recoloring or geometry changes.
+- Added centralized web brand constants and CSS brand tokens using extracted logo colors:
+  `#b20000` and `#363636`.
+- Added reusable `SeneveLogo` component with `transparent`, `whiteBackground` and `mark` variants.
+- Integrated Seneve branding into the web shell header, auth layout placeholder, loading state,
+  metadata and web manifest.
+- Added structural tests for logo rendering, variant selection, header usage, metadata and manifest
+  icon paths.
+- Added brand asset guidelines and initial design-system documentation.
+
 ### Epic 002 Phase 14 - Organization HTTP API
 
 - Added the transport-independent Organization application service package.
@@ -90,9 +175,7 @@
 - Official GitHub remote has not been provided or confirmed.
 - GitHub Actions has not run remotely.
 - Docker image build and Docker Compose startup validation have not run locally because Docker was unavailable.
-- Epic 002 Phase 14 has no frontend login or organization pages, browser fingerprinting,
-  external email-provider delivery, invitation delivery, notification outbox, authenticated password
-  change, authorization persistence, custom role persistence, production role provisioning
-  automation, audit HTTP endpoints, audit UI, export files, retention deletion jobs, SIEM
-  integration, external log shipping, or frontend integration.
+- Epic 002 Phase 15 has no Campaign, Voting, billing, custom-role UI, production email delivery,
+  authenticated password change, frontend Playwright suite, audit HTTP endpoints, audit UI, export
+  files, retention deletion jobs, SIEM integration or external log shipping.
 - PostgreSQL repository integration tests are present but skipped locally unless `RUN_POSTGRES_INTEGRATION=true` and `DATABASE_URL` point to a migrated PostgreSQL database.
