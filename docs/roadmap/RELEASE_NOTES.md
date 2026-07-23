@@ -1,5 +1,15 @@
 # Release Notes
 
+## Epic 004 Phase 21 - Authenticated Ballot Experience
+
+- Added an authenticated ballot endpoint for active non-private free Campaigns.
+- Added a tenant-scoped eligible-Candidate projection and per-voter remaining quota.
+- Added a responsive Seneve ballot route with idempotent free-vote submission and authoritative
+  post-submission refresh.
+- Added an administration link for opening eligible Campaign ballots.
+- Anonymous admission, multi-candidate submission, payments, SMS, Fraud, rankings and results remain
+  deferred.
+
 ## Epic 004 Phase 20 - Authenticated Free Voting Foundation
 
 - Added an immutable `VoteAttempt` aggregate and PostgreSQL persistence with voter-scoped RLS.
