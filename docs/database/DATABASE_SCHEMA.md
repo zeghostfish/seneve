@@ -1,5 +1,12 @@
 # SENEVE Database Schema Reference
 
+## Voting
+
+`vote_attempts` stores tenant-scoped authenticated vote attempts. The unique request tuple is
+`(organization_id, campaign_id, voter_identity_id, request_id)`. Finalized rows are protected from
+update and delete by a database trigger and voter-scoped RLS. Vote totals are not stored on Candidate
+or Campaign records.
+
 ## Purpose
 
 This document is the reference for future Prisma schema design and database migrations.

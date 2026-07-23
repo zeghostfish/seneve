@@ -79,6 +79,17 @@ invitation creation/revocation/acceptance and ownership transfer.
 The HTTP layer may supply correlation and request context, but actor, tenant and privileged metadata
 must come from trusted authentication, tenant-context and authorization boundaries.
 
+## Voting Events
+
+| Event                  | Version |
+| ---------------------- | ------- |
+| `VOTE_ATTEMPT_CREATED` | 1       |
+| `VOTE_CONFIRMED`       | 1       |
+| `VOTE_REJECTED`        | 1       |
+
+Confirmed vote audit metadata contains only identifiers required for traceability. It excludes
+access tokens, cookies, request bodies and voter contact details.
+
 ## Authorization and Tenancy Events
 
 | Event                             | Version |
