@@ -56,6 +56,28 @@ describePostgres('Prisma voting persistence and RLS', () => {
     );
   });
 
+  it('reads the campaign and eligible candidates inside the voting tenant context', async () => {
+    await execution.run(voterContext(voterA), () =>
+      unitOfWork.transaction(async (repositories) => {
+        await expect(
+          repositories.findCampaign({ organizationId, campaignId }),
+        ).resolves.toMatchObject({
+          id: campaignId,
+          name: 'Voting campaign',
+        });
+        await expect(
+          repositories.listEligibleCandidates({ organizationId, campaignId }),
+        ).resolves.toEqual([
+          expect.objectContaining({
+            id: candidateId,
+            displayName: 'Eligible candidate',
+            position: 1,
+          }),
+        ]);
+      }),
+    );
+  });
+
   it('isolates vote attempts by authenticated identity through RLS', async () => {
     await execution.run(voterContext(voterA), () =>
       unitOfWork.transaction(({ votes }) => votes.create(attempt())),
