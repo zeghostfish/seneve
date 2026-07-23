@@ -5,6 +5,7 @@ import {
   AsyncLocalStorageTenantContextProvider,
   TenantExecutionContext,
   authenticatedVotingTenantContext,
+  platformAdminTenantContext,
 } from '@seneve/tenant-context';
 import { PrismaTenantRlsTransactionBoundary } from '@seneve/organization-persistence';
 
@@ -15,10 +16,8 @@ const enabled =
 const describePostgres = enabled ? describe : describe.skip;
 const prisma = new PrismaClient();
 const execution = new TenantExecutionContext(new AsyncLocalStorageTenantContextProvider());
-const unitOfWork = new PrismaVotingRlsUnitOfWork(
-  new PrismaTenantRlsTransactionBoundary(prisma, execution),
-  () => ({ async record() {} }),
-);
+const rls = new PrismaTenantRlsTransactionBoundary(prisma, execution);
+const unitOfWork = new PrismaVotingRlsUnitOfWork(rls, () => ({ async record() {} }));
 
 const organizationId = '22222222-2222-4222-8222-222222222222';
 const campaignId = '33333333-3333-4333-8333-333333333333';
@@ -147,50 +146,60 @@ async function seed(): Promise<void> {
     });
   }
 
-  await prisma.organization.create({
-    data: {
-      id: organizationId,
-      publicId: 'public-voting-tenant',
-      displayName: 'Voting tenant',
-      slug: 'voting-tenant',
-      status: 'ACTIVE',
-      defaultLocale: 'en',
-      timezone: 'Africa/Lome',
-      activatedAt: now,
-    },
-  });
-  await prisma.campaign.create({
-    data: {
-      id: campaignId,
-      organizationId,
-      name: 'Voting campaign',
-      slug: 'voting-campaign',
-      status: 'ACTIVE',
-      visibility: 'PRIVATE',
-      timezone: 'Africa/Lome',
-      locale: 'en',
-      startsAt: new Date('2026-07-23T10:00:00.000Z'),
-      endsAt: new Date('2026-07-23T14:00:00.000Z'),
-      votingMode: 'FREE',
-      votesPerVoter: 1,
-      allowMultipleCandidates: false,
-      requiresEmailVerification: true,
-      resultsVisibility: 'AFTER_CAMPAIGN',
-      createdBy: voterA,
-    },
-  });
-  await prisma.candidate.create({
-    data: {
-      id: candidateId,
-      organizationId,
-      campaignId,
-      displayName: 'Eligible candidate',
-      slug: 'eligible-candidate',
-      status: 'ELIGIBLE',
-      position: 1,
-      createdBy: voterA,
-    },
-  });
+  await execution.run(
+    platformAdminTenantContext({
+      identityId: voterA,
+      correlationId: 'correlation-voting-seed',
+      executionSource: 'INTERNAL_WORKFLOW',
+    }),
+    () =>
+      rls.transaction(async (tx) => {
+        await tx.organization.create({
+          data: {
+            id: organizationId,
+            publicId: 'public-voting-tenant',
+            displayName: 'Voting tenant',
+            slug: 'voting-tenant',
+            status: 'ACTIVE',
+            defaultLocale: 'en',
+            timezone: 'Africa/Lome',
+            activatedAt: now,
+          },
+        });
+        await tx.campaign.create({
+          data: {
+            id: campaignId,
+            organizationId,
+            name: 'Voting campaign',
+            slug: 'voting-campaign',
+            status: 'ACTIVE',
+            visibility: 'PRIVATE',
+            timezone: 'Africa/Lome',
+            locale: 'en',
+            startsAt: new Date('2026-07-23T10:00:00.000Z'),
+            endsAt: new Date('2026-07-23T14:00:00.000Z'),
+            votingMode: 'FREE',
+            votesPerVoter: 1,
+            allowMultipleCandidates: false,
+            requiresEmailVerification: true,
+            resultsVisibility: 'AFTER_CAMPAIGN',
+            createdBy: voterA,
+          },
+        });
+        await tx.candidate.create({
+          data: {
+            id: candidateId,
+            organizationId,
+            campaignId,
+            displayName: 'Eligible candidate',
+            slug: 'eligible-candidate',
+            status: 'ELIGIBLE',
+            position: 1,
+            createdBy: voterA,
+          },
+        });
+      }),
+  );
 }
 
 async function cleanup(): Promise<void> {
