@@ -14,6 +14,58 @@ const voteAttemptId = '11111111-1111-4111-8111-111111111111';
 const now = new Date('2026-07-23T12:00:00.000Z');
 
 describe('VotingController', () => {
+  it('returns a safe authenticated ballot view', async () => {
+    const controller = new VotingController({
+      async getBallot() {
+        return {
+          campaign: {
+            id: campaignId,
+            organizationId,
+            name: 'Seneve Awards',
+            description: null,
+            status: 'ACTIVE',
+            visibility: 'UNLISTED',
+            timezone: 'Africa/Lome',
+            locale: 'en',
+            votingMode: 'FREE',
+            votesPerVoter: 1,
+            allowMultipleCandidates: false,
+            requiresEmailVerification: true,
+            startsAt: now,
+            endsAt: new Date('2026-07-23T14:00:00.000Z'),
+          },
+          candidates: [
+            {
+              id: candidateId,
+              organizationId,
+              campaignId,
+              displayName: 'Candidate One',
+              slug: 'candidate-one',
+              shortDescription: null,
+              imageAssetId: null,
+              position: 1,
+              status: 'ELIGIBLE',
+            },
+          ],
+          confirmedVoteCount: 0,
+          remainingVotes: 1,
+        };
+      },
+    } as never);
+
+    const response = await controller.getBallot({ organizationId, campaignId }, request());
+
+    expect(response).toMatchObject({
+      ballot: {
+        campaign: { id: campaignId, name: 'Seneve Awards' },
+        candidates: [{ id: candidateId, displayName: 'Candidate One' }],
+        remainingVotes: 1,
+      },
+      correlationId: 'corr-vote-http',
+    });
+    expect(response.ballot.candidates[0]).not.toHaveProperty('organizationId');
+  });
+
   it('maps confirmed votes without exposing voter identity or request identifiers', async () => {
     const controller = new VotingController({
       async submitFreeVote() {

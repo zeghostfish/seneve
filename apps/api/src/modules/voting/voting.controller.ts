@@ -21,7 +21,7 @@ import {
   VotingCampaignParamDto,
 } from './dto/voting.dto.js';
 import { mapVotingError } from './mappers/voting-error.mapper.js';
-import { votingResponse } from './mappers/voting-response.mapper.js';
+import { ballotResponse, votingResponse } from './mappers/voting-response.mapper.js';
 import { VOTING_APPLICATION_SERVICE } from './voting.tokens.js';
 
 @ApiTags('Voting')
@@ -33,6 +33,27 @@ export class VotingController {
     @Inject(VOTING_APPLICATION_SERVICE)
     private readonly voting: VotingApplicationService,
   ) {}
+
+  @Get('campaigns/:campaignId/ballot')
+  @ApiOperation({ summary: 'Read an authenticated free-voting ballot.' })
+  async getBallot(
+    @Param() params: VotingCampaignParamDto,
+    @Req() request: AuthenticatedHttpRequest,
+  ) {
+    const correlationId = correlationIdFrom(request);
+    const identityId = requireIdentity(request, correlationId);
+    try {
+      const result = await this.voting.getBallot({
+        voterIdentityId: identityId,
+        organizationId: params.organizationId,
+        campaignId: params.campaignId,
+        correlationId,
+      });
+      return { ballot: ballotResponse(result), correlationId };
+    } catch (error) {
+      throw mapVotingError(error, correlationId);
+    }
+  }
 
   @Post('campaigns/:campaignId/votes')
   @ApiOperation({ summary: 'Submit an idempotent authenticated free vote.' })
