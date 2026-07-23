@@ -1,5 +1,10 @@
 import type { IdentityRepository } from '@seneve/domain-identity';
-import type { VoteAttemptSnapshot, VotingUnitOfWork } from '@seneve/domain-voting';
+import type {
+  VoteAttemptSnapshot,
+  VotingCampaignReadModel,
+  VotingCandidateReadModel,
+  VotingUnitOfWork,
+} from '@seneve/domain-voting';
 import type { TenantExecutionContext } from '@seneve/tenant-context';
 
 export interface VotingApplicationDependencies {
@@ -22,4 +27,11 @@ export interface SubmitVoteCommand {
 export interface VoteCommandResult {
   readonly vote: VoteAttemptSnapshot;
   readonly replayed: boolean;
+}
+
+export interface VotingBallotResult {
+  readonly campaign: VotingCampaignReadModel;
+  readonly candidates: readonly VotingCandidateReadModel[];
+  readonly confirmedVoteCount: number;
+  readonly remainingVotes: number;
 }
