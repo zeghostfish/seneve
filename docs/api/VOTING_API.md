@@ -3,6 +3,17 @@
 All current Voting endpoints require a valid access token. Refresh cookies are not direct vote
 authorization.
 
+## Read Authenticated Ballot
+
+`GET /voting/organizations/:organizationId/campaigns/:campaignId/ballot`
+
+The response contains safe Campaign presentation and voting-rule fields, ordered eligible
+Candidates, the authenticated identity's confirmed-vote count and remaining quota. It excludes
+voter identifiers, vote totals, rankings and request identifiers.
+
+The Campaign must be active, inside its configured UTC voting window, non-private and configured for
+free voting. Candidate eligibility and quota are checked again during submission.
+
 ## Submit Free Vote
 
 `POST /voting/organizations/:organizationId/campaigns/:campaignId/votes`
@@ -41,3 +52,10 @@ found.
 - `VOTING_QUOTA_REACHED`
 
 Database errors, policy details and cross-tenant existence are never exposed.
+
+## Web Route
+
+`/vote/:organizationId/:campaignId`
+
+The route requires the existing Seneve authentication session. It uses the ballot endpoint and
+submits a client-generated UUID through the free-vote endpoint. Anonymous voting is not supported.
