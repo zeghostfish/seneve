@@ -284,11 +284,12 @@ async function cleanupTables(): Promise<void> {
     }),
     () =>
       rls.transaction(async (tx) => {
-        await tx.candidate.deleteMany();
-        await tx.campaign.deleteMany();
-        await tx.organizationMembership.deleteMany();
-        await tx.organizationInvitation.deleteMany();
-        await tx.organization.deleteMany();
+        await tx.$executeRawUnsafe(`
+          TRUNCATE TABLE
+            "vote_attempts", "candidates", "campaigns", "organization_memberships",
+            "organization_invitations", "organizations"
+          RESTART IDENTITY CASCADE
+        `);
       }),
   );
   await prisma.identityEmail.deleteMany();
