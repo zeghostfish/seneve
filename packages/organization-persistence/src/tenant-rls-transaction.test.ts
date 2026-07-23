@@ -5,6 +5,7 @@ import {
   TenantContextError,
   TenantExecutionContext,
   authenticatedTenantContext,
+  authenticatedVotingTenantContext,
   crossTenantTenantContext,
   organizationTenantContext,
   platformAdminTenantContext,
@@ -67,6 +68,25 @@ describe('PrismaTenantRlsTransactionBoundary', () => {
     expect(tx.settings).toContainEqual(['app.execution_mode', 'AUTHENTICATED']);
     expect(tx.settings).toContainEqual(['app.operation', 'ORGANIZATION_BOOTSTRAP']);
     expect(tx.settings).toContainEqual(['app.tenant_id', '44444444-4444-4444-8444-444444444444']);
+  });
+
+  it('sets bounded authenticated RLS settings for vote submission', async () => {
+    const { execution, boundary, tx } = createBoundary();
+    const context = authenticatedVotingTenantContext({
+      tenantId: '44444444-4444-4444-8444-444444444444',
+      identityId: '11111111-1111-4111-8111-111111111111',
+      correlationId: 'correlation-vote',
+      executionSource: 'HTTP_REQUEST',
+    });
+
+    await execution.run(context, () =>
+      boundary.transaction(async () => 'confirmed', { operation: 'VOTE_SUBMISSION' }),
+    );
+
+    expect(tx.settings).toContainEqual(['app.tenant_id', '44444444-4444-4444-8444-444444444444']);
+    expect(tx.settings).toContainEqual(['app.identity_id', '11111111-1111-4111-8111-111111111111']);
+    expect(tx.settings).toContainEqual(['app.execution_mode', 'AUTHENTICATED']);
+    expect(tx.settings).toContainEqual(['app.operation', 'VOTE_SUBMISSION']);
   });
 
   it('requires cross-tenant execution to include target tenant and reason', async () => {

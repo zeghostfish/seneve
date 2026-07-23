@@ -147,6 +147,12 @@ enum CandidateStatus {
   ARCHIVED
 }
 
+enum VoteAttemptStatus {
+  PENDING
+  CONFIRMED
+  REJECTED
+}
+
 model Identity {
   id                          String                   @id @default(uuid()) @db.Uuid
   status                      IdentityStatus
@@ -166,6 +172,7 @@ model Identity {
   securityEvents              IdentitySecurityEvent[]
   organizationMemberships     OrganizationMembership[]
   sentOrganizationInvitations OrganizationInvitation[] @relation("OrganizationInvitationInviter")
+  voteAttempts                VoteAttempt[]
 
   @@index([status], map: "idx_identities_status")
   @@index([normalizedLoginEmail], map: "idx_identities_normalized_login_email")
@@ -338,6 +345,7 @@ model Organization {
   invitations   OrganizationInvitation[]
   campaigns     Campaign[]
   candidates    Candidate[]
+  voteAttempts  VoteAttempt[]
 
   @@index([status], map: "idx_organizations_status")
   @@index([slug], map: "idx_organizations_slug")
@@ -370,6 +378,7 @@ model Campaign {
   version                   Int                       @default(1)
   organization              Organization              @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   candidates                Candidate[]
+  voteAttempts              VoteAttempt[]
 
   @@unique([organizationId, slug], map: "uq_campaigns_organization_slug")
   @@index([organizationId], map: "idx_campaigns_organization_id")
@@ -401,6 +410,7 @@ model Candidate {
   version           Int             @default(1)
   organization      Organization    @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   campaign          Campaign        @relation(fields: [campaignId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  voteAttempts      VoteAttempt[]
 
   @@unique([campaignId, slug], map: "uq_candidates_campaign_slug")
   @@unique([campaignId, position], map: "uq_candidates_campaign_position")
@@ -409,6 +419,31 @@ model Candidate {
   @@index([campaignId, position, createdAt, id], map: "idx_candidates_campaign_position_created_id")
   @@index([organizationId, createdAt], map: "idx_candidates_organization_created_at")
   @@map("candidates")
+}
+
+model VoteAttempt {
+  id              String            @id @default(uuid()) @db.Uuid
+  organizationId  String            @map("organization_id") @db.Uuid
+  campaignId      String            @map("campaign_id") @db.Uuid
+  candidateId     String            @map("candidate_id") @db.Uuid
+  voterIdentityId String            @map("voter_identity_id") @db.Uuid
+  requestId       String            @map("request_id") @db.Uuid
+  status          VoteAttemptStatus
+  rejectionCode   String?           @map("rejection_code")
+  createdAt       DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  confirmedAt     DateTime?         @map("confirmed_at") @db.Timestamptz(6)
+  rejectedAt      DateTime?         @map("rejected_at") @db.Timestamptz(6)
+  version         Int               @default(1)
+  organization    Organization      @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  campaign        Campaign          @relation(fields: [campaignId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  candidate       Candidate         @relation(fields: [candidateId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  voterIdentity   Identity          @relation(fields: [voterIdentityId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([organizationId, campaignId, voterIdentityId, requestId], map: "uq_vote_attempts_request")
+  @@index([organizationId, campaignId, voterIdentityId, status], map: "idx_vote_attempts_voter_status")
+  @@index([organizationId, campaignId, candidateId, status], map: "idx_vote_attempts_candidate_status")
+  @@index([organizationId, createdAt, id], map: "idx_vote_attempts_organization_created")
+  @@map("vote_attempts")
 }
 
 model OrganizationMembership {

@@ -21,6 +21,7 @@
       "@seneve/domain-candidate": ["packages/domain/candidate/src/index.ts"],
       "@seneve/domain-identity": ["packages/domain/identity/src/index.ts"],
       "@seneve/domain-organization": ["packages/domain/organization/src/index.ts"],
+      "@seneve/domain-voting": ["packages/domain/voting/src/index.ts"],
       "@seneve/audit-application": ["packages/audit-application/src/index.ts"],
       "@seneve/audit-persistence": ["packages/audit-persistence/src/index.ts"],
       "@seneve/authorization-application": ["packages/authorization-application/src/index.ts"],
@@ -33,6 +34,8 @@
       "@seneve/identity-persistence": ["packages/identity-persistence/src/index.ts"],
       "@seneve/organization-application": ["packages/organization-application/src/index.ts"],
       "@seneve/organization-persistence": ["packages/organization-persistence/src/index.ts"],
+      "@seneve/voting-application": ["packages/voting-application/src/index.ts"],
+      "@seneve/voting-persistence": ["packages/voting-persistence/src/index.ts"],
       "@seneve/tenant-context": ["packages/tenant-context/src/index.ts"],
       "@seneve/testing": ["packages/testing/src/index.ts"]
     }

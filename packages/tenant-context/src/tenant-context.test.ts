@@ -5,6 +5,7 @@ import {
   DefaultTenantResolver,
   TenantContextError,
   TenantExecutionContext,
+  authenticatedVotingTenantContext,
   organizationTenantContext,
 } from './index.js';
 
@@ -159,6 +160,25 @@ describe('Tenant Context Engine', () => {
         executionSource: 'CLI_COMMAND',
       }),
     ).toThrowError(TenantContextError);
+  });
+
+  it('creates a voter tenant context without fabricating organization membership', () => {
+    const context = authenticatedVotingTenantContext({
+      tenantId: 'organization-vote',
+      identityId: 'identity-voter',
+      correlationId: 'correlation-vote',
+      executionSource: 'HTTP_REQUEST',
+    });
+
+    expect(context).toMatchObject({
+      tenantId: 'organization-vote',
+      identityId: 'identity-voter',
+      membershipId: null,
+      role: null,
+      permissions: [],
+      executionMode: 'AUTHENTICATED',
+      scope: { kind: 'TENANT', tenantId: 'organization-vote' },
+    });
   });
 });
 

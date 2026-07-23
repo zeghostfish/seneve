@@ -2,6 +2,7 @@ import type { AuditEventName } from '@seneve/domain-audit';
 import type { CampaignDomainEvent } from '@seneve/domain-campaign';
 import type { CandidateDomainEvent } from '@seneve/domain-candidate';
 import type { OrganizationDomainEvent } from '@seneve/domain-organization';
+import type { VoteAttemptDomainEvent } from '@seneve/domain-voting';
 import type { SecurityEventInput } from '@seneve/identity-application';
 
 import type { AuditRecordAppendInput } from './audit-contracts.js';
@@ -145,6 +146,41 @@ export function mapCandidateDomainEventToAudit(
   };
 }
 
+export function mapVoteDomainEventToAudit(event: VoteAttemptDomainEvent): AuditRecordAppendInput {
+  return {
+    eventName: toVoteAuditEventName(event.name),
+    occurredAt: event.metadata.occurredAt,
+    actor: {
+      actorType: 'IDENTITY',
+      actorIdentityId: event.metadata.actorIdentityId,
+      actorMembershipId: null,
+    },
+    tenantId: event.organizationId,
+    executionMode: '',
+    executionSource: '',
+    resource: { resourceType: 'vote_attempt', resourceId: event.aggregateId },
+    action: event.name,
+    outcome: event.name === 'VoteRejected' ? 'DENIED' : 'SUCCEEDED',
+    reasonCode:
+      event.name === 'VoteRejected' && typeof event.payload.rejectionCode === 'string'
+        ? event.payload.rejectionCode
+        : null,
+    correlation: {
+      correlationId: event.metadata.correlationId,
+      requestId: null,
+      jobId: null,
+    },
+    privileged: false,
+    privilegedReason: null,
+    metadata: {
+      eventId: event.metadata.eventId,
+      campaignId: event.campaignId,
+      candidateId: event.candidateId,
+    },
+    retentionCategory: 'GOVERNANCE',
+  };
+}
+
 function toAuditEventName(eventType: OrganizationDomainEvent['eventType']): AuditEventName {
   return eventType
     .replace(/[A-Z]/g, (character, index) => `${index === 0 ? '' : '_'}${character}`)
@@ -158,6 +194,12 @@ function toCampaignAuditEventName(eventType: CampaignDomainEvent['name']): Audit
 }
 
 function toCandidateAuditEventName(eventType: CandidateDomainEvent['name']): AuditEventName {
+  return eventType
+    .replace(/[A-Z]/g, (character, index) => `${index === 0 ? '' : '_'}${character}`)
+    .toUpperCase() as AuditEventName;
+}
+
+function toVoteAuditEventName(eventType: VoteAttemptDomainEvent['name']): AuditEventName {
   return eventType
     .replace(/[A-Z]/g, (character, index) => `${index === 0 ? '' : '_'}${character}`)
     .toUpperCase() as AuditEventName;

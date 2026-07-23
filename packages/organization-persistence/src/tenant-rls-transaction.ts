@@ -6,7 +6,7 @@ import {
 } from '@seneve/tenant-context';
 
 export type TenantDatabaseOperation =
-  'TENANT_ACCESS' | 'ORGANIZATION_BOOTSTRAP' | 'INVITATION_ACCEPTANCE';
+  'TENANT_ACCESS' | 'ORGANIZATION_BOOTSTRAP' | 'INVITATION_ACCEPTANCE' | 'VOTE_SUBMISSION';
 
 export interface PrismaRlsTransactionClient {
   $transaction<T>(work: (tx: Prisma.TransactionClient) => Promise<T>): Promise<T>;

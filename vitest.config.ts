@@ -43,6 +43,8 @@ export default defineConfig({
         './packages/domain/organization/src/index.ts',
         import.meta.url,
       ).pathname,
+      '@seneve/domain-voting': new URL('./packages/domain/voting/src/index.ts', import.meta.url)
+        .pathname,
       '@seneve/identity-application': new URL(
         './packages/identity-application/src/index.ts',
         import.meta.url,
@@ -59,6 +61,14 @@ export default defineConfig({
       ).pathname,
       '@seneve/organization-persistence': new URL(
         './packages/organization-persistence/src/index.ts',
+        import.meta.url,
+      ).pathname,
+      '@seneve/voting-application': new URL(
+        './packages/voting-application/src/index.ts',
+        import.meta.url,
+      ).pathname,
+      '@seneve/voting-persistence': new URL(
+        './packages/voting-persistence/src/index.ts',
         import.meta.url,
       ).pathname,
       '@seneve/shared': new URL('./packages/shared/src/index.ts', import.meta.url).pathname,
