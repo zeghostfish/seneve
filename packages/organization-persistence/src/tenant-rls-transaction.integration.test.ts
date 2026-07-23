@@ -4,6 +4,7 @@ import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import {
   AsyncLocalStorageTenantContextProvider,
   TenantExecutionContext,
+  authenticatedTenantContext,
   crossTenantTenantContext,
   organizationTenantContext,
   platformAdminTenantContext,
@@ -170,18 +171,24 @@ describePostgres('PostgreSQL organization row-level security', () => {
   it('supports controlled organization bootstrap without disabling RLS', async () => {
     const bootstrapTenant = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
 
-    await execution.run(tenantContext(tenantA, identityA, 'correlation-bootstrap-source'), () =>
-      rls.transaction(
-        async (tx) => {
-          await tx.organization.create({
-            data: organizationInput(bootstrapTenant, identityA, 'tenant-c'),
-          });
-        },
-        {
-          operation: 'ORGANIZATION_BOOTSTRAP',
-          tenantId: bootstrapTenant,
-        },
-      ),
+    await execution.run(
+      authenticatedTenantContext({
+        identityId: identityA,
+        correlationId: 'correlation-bootstrap-source',
+        executionSource: 'INTERNAL_WORKFLOW',
+      }),
+      () =>
+        rls.transaction(
+          async (tx) => {
+            await tx.organization.create({
+              data: organizationInput(bootstrapTenant, identityA, 'tenant-c'),
+            });
+          },
+          {
+            operation: 'ORGANIZATION_BOOTSTRAP',
+            tenantId: bootstrapTenant,
+          },
+        ),
     );
 
     await execution.run(

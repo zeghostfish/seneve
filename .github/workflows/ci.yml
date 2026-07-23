@@ -47,7 +47,8 @@ jobs:
       API_PORT: 3000
       WEB_PORT: 3001
       WORKER_HEALTH_PORT: 3002
-      DATABASE_URL: postgresql://seneve:seneve@localhost:5432/seneve?schema=public
+      DATABASE_URL: postgresql://seneve_app:seneve_app@localhost:5432/seneve?schema=public
+      MIGRATION_DATABASE_URL: postgresql://seneve:seneve@localhost:5432/seneve?schema=public
       REDIS_URL: redis://localhost:6379
       JWT_ACCESS_TOKEN_SECRET: ${{ secrets.JWT_ACCESS_TOKEN_SECRET }}
       JWT_REFRESH_TOKEN_SECRET: ${{ secrets.JWT_REFRESH_TOKEN_SECRET }}
@@ -84,15 +85,43 @@ jobs:
 
       - name: Apply migrations
         run: corepack pnpm exec prisma migrate deploy --schema database/prisma/schema.prisma
+        env:
+          DATABASE_URL: ${{ env.MIGRATION_DATABASE_URL }}
 
       - name: Verify migrations
         run: corepack pnpm exec prisma migrate status --schema database/prisma/schema.prisma
+        env:
+          DATABASE_URL: ${{ env.MIGRATION_DATABASE_URL }}
 
       - name: Verify PostgreSQL
         run: |
           sudo apt-get update
           sudo apt-get install -y postgresql-client redis-tools
           pg_isready -h localhost -p 5432 -U seneve -d seneve
+
+      - name: Create RLS application role
+        env:
+          PGPASSWORD: seneve
+        run: |
+          psql -h localhost -p 5432 -U seneve -d seneve -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE ROLE seneve_app
+            LOGIN
+            PASSWORD 'seneve_app'
+            NOSUPERUSER
+            NOCREATEDB
+            NOCREATEROLE
+            NOINHERIT
+            NOREPLICATION
+            NOBYPASSRLS;
+          GRANT CONNECT ON DATABASE seneve TO seneve_app;
+          GRANT USAGE ON SCHEMA public TO seneve_app;
+          GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE
+            ON ALL TABLES IN SCHEMA public
+            TO seneve_app;
+          GRANT USAGE, SELECT
+            ON ALL SEQUENCES IN SCHEMA public
+            TO seneve_app;
+          SQL
 
       - name: Verify Redis
         run: redis-cli -h localhost -p 6379 ping
