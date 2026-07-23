@@ -56,15 +56,15 @@ The known dangling tree `2cc97d7b1039e0a1251fa23d6ab7d3d0192e71b5` is non-blocki
 
 Install these tools before running validation:
 
-| Tool | Required version | Verification command |
-| --- | --- | --- |
-| Node.js | `>=22.0.0` | `node --version` |
-| pnpm | `10.14.0` through Corepack | `corepack pnpm --version` |
-| Git | Any supported modern Git | `git --version` |
-| Docker | Docker Engine with Compose v2 | `docker --version && docker compose version` |
-| PostgreSQL | `17.x` preferred, matching `postgres:17-alpine` | `docker compose exec postgres postgres --version` |
-| Redis | `7.x` preferred, matching `redis:7-alpine` | `docker compose exec redis redis-server --version` |
-| curl | Available for API smoke checks | `curl --version` |
+| Tool       | Required version                                | Verification command                               |
+| ---------- | ----------------------------------------------- | -------------------------------------------------- |
+| Node.js    | `>=22.0.0`                                      | `node --version`                                   |
+| pnpm       | `10.14.0` through Corepack                      | `corepack pnpm --version`                          |
+| Git        | Any supported modern Git                        | `git --version`                                    |
+| Docker     | Docker Engine with Compose v2                   | `docker --version && docker compose version`       |
+| PostgreSQL | `17.x` preferred, matching `postgres:17-alpine` | `docker compose exec postgres postgres --version`  |
+| Redis      | `7.x` preferred, matching `redis:7-alpine`      | `docker compose exec redis redis-server --version` |
+| curl       | Available for API smoke checks                  | `curl --version`                                   |
 
 Confirm registry access:
 
@@ -449,28 +449,28 @@ server/browser errors.
 
 ### API
 
-| Step | Expected result | Failure condition |
-| --- | --- | --- |
-| Health check `GET /api/v1/health` | `200` with status `ok` | Non-2xx response or missing health body |
-| Register | Identity is created; response contains safe public fields only | Password/token/hash is returned; registration fails unexpectedly |
-| Login | Access token returned; refresh cookie set | Refresh token appears in JSON; cookie missing |
-| Refresh | Access token rotates through cookie-backed refresh | Reused or invalid token succeeds; cookie not replaced |
-| Create organization | Organization and owner membership created atomically | Missing owner membership; tenant context error |
-| Create campaign | Campaign belongs to selected organization | Cross-tenant creation or wrong organization ID |
-| Create candidate | Candidate belongs to campaign and organization | Candidate can attach to another campaign or tenant |
-| Reorder candidate | Full order persists atomically | Lost candidate, duplicate position or partial reorder |
-| Logout | Session revoked; refresh cookie cleared | Session remains valid; cookie not cleared |
+| Step                              | Expected result                                                | Failure condition                                                |
+| --------------------------------- | -------------------------------------------------------------- | ---------------------------------------------------------------- |
+| Health check `GET /api/v1/health` | `200` with status `ok`                                         | Non-2xx response or missing health body                          |
+| Register                          | Identity is created; response contains safe public fields only | Password/token/hash is returned; registration fails unexpectedly |
+| Login                             | Access token returned; refresh cookie set                      | Refresh token appears in JSON; cookie missing                    |
+| Refresh                           | Access token rotates through cookie-backed refresh             | Reused or invalid token succeeds; cookie not replaced            |
+| Create organization               | Organization and owner membership created atomically           | Missing owner membership; tenant context error                   |
+| Create campaign                   | Campaign belongs to selected organization                      | Cross-tenant creation or wrong organization ID                   |
+| Create candidate                  | Candidate belongs to campaign and organization                 | Candidate can attach to another campaign or tenant               |
+| Reorder candidate                 | Full order persists atomically                                 | Lost candidate, duplicate position or partial reorder            |
+| Logout                            | Session revoked; refresh cookie cleared                        | Session remains valid; cookie not cleared                        |
 
 ### Frontend
 
-| Step | Expected result | Failure condition |
-| --- | --- | --- |
-| Onboarding | Authenticated user without organization sees creation flow | Blank screen or protected content flash |
-| Campaign creation | Form submits through API and navigates to created Campaign | Raw API error, duplicate local state or missing feedback |
-| Campaign settings | Editable fields match backend lifecycle rules | UI allows unsupported field mutation without clear error |
-| Candidate management | List, create, edit and lifecycle actions use API responses | Vote/rank/result fields appear |
-| Permissions | Restricted controls are hidden or disabled but backend remains authoritative | Role-name checks replace permission checks |
-| Organization switching | Campaign and Candidate data refetches for active organization | Prior organization data remains visible |
+| Step                   | Expected result                                                              | Failure condition                                        |
+| ---------------------- | ---------------------------------------------------------------------------- | -------------------------------------------------------- |
+| Onboarding             | Authenticated user without organization sees creation flow                   | Blank screen or protected content flash                  |
+| Campaign creation      | Form submits through API and navigates to created Campaign                   | Raw API error, duplicate local state or missing feedback |
+| Campaign settings      | Editable fields match backend lifecycle rules                                | UI allows unsupported field mutation without clear error |
+| Candidate management   | List, create, edit and lifecycle actions use API responses                   | Vote/rank/result fields appear                           |
+| Permissions            | Restricted controls are hidden or disabled but backend remains authoritative | Role-name checks replace permission checks               |
+| Organization switching | Campaign and Candidate data refetches for active organization                | Prior organization data remains visible                  |
 
 ## Security Validation Checklist
 
