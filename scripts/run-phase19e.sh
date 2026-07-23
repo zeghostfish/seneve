@@ -59,6 +59,40 @@ wait_for_url() {
   return 1
 }
 
+wait_for_postgres() {
+  local attempts="${1:-45}"
+
+  printf '\n==> Waiting for PostgreSQL readiness\n'
+  for _ in $(seq 1 "$attempts"); do
+    if docker compose exec -T postgres pg_isready -U seneve -d seneve >/dev/null 2>&1; then
+      printf 'PostgreSQL is ready\n'
+      return 0
+    fi
+    sleep 2
+  done
+
+  printf 'PostgreSQL did not become ready within %s seconds\n' "$((attempts * 2))" >&2
+  docker compose logs postgres >&2 || true
+  return 1
+}
+
+wait_for_redis() {
+  local attempts="${1:-45}"
+
+  printf '\n==> Waiting for Redis readiness\n'
+  for _ in $(seq 1 "$attempts"); do
+    if [[ "$(docker compose exec -T redis redis-cli ping 2>/dev/null)" == "PONG" ]]; then
+      printf 'Redis is ready\n'
+      return 0
+    fi
+    sleep 2
+  done
+
+  printf 'Redis did not become ready within %s seconds\n' "$((attempts * 2))" >&2
+  docker compose logs redis >&2 || true
+  return 1
+}
+
 require_command git
 require_command node
 require_command corepack
@@ -110,8 +144,8 @@ run corepack pnpm db:generate
 run corepack pnpm db:validate
 
 run docker compose up -d postgres redis
-run docker compose exec -T postgres pg_isready -U seneve -d seneve
-run docker compose exec -T redis redis-cli ping
+wait_for_postgres
+wait_for_redis
 
 run corepack pnpm exec prisma migrate deploy --schema database/prisma/schema.prisma
 run corepack pnpm exec prisma migrate status --schema database/prisma/schema.prisma
