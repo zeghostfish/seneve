@@ -115,6 +115,10 @@ jobs:
             NOBYPASSRLS;
           GRANT CONNECT ON DATABASE seneve TO seneve_app;
           GRANT USAGE ON SCHEMA public TO seneve_app;
+          GRANT USAGE ON SCHEMA app TO seneve_app;
+          GRANT EXECUTE
+            ON ALL FUNCTIONS IN SCHEMA app
+            TO seneve_app;
           GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE
             ON ALL TABLES IN SCHEMA public
             TO seneve_app;
