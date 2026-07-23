@@ -114,6 +114,31 @@ export function authenticatedTenantContext(input: {
   };
 }
 
+export function authenticatedVotingTenantContext(input: {
+  readonly tenantId: string;
+  readonly identityId: string;
+  readonly correlationId: string;
+  readonly requestId?: string | null;
+  readonly executionSource: TenantExecutionSource;
+}): TenantContext {
+  assertCorrelation(input.correlationId);
+  assertPresent(input.tenantId, 'TENANT_REQUIRED', 'Voting execution requires tenant.');
+  assertPresent(input.identityId, 'IDENTITY_REQUIRED', 'Voting execution requires identity.');
+
+  return {
+    tenantId: input.tenantId,
+    identityId: input.identityId,
+    membershipId: null,
+    role: null,
+    permissions: [],
+    correlationId: input.correlationId,
+    requestId: input.requestId ?? null,
+    executionSource: input.executionSource,
+    executionMode: 'AUTHENTICATED',
+    scope: { kind: 'TENANT', tenantId: input.tenantId },
+  };
+}
+
 export function organizationTenantContext(input: {
   readonly tenantId: string;
   readonly identityId: string;

@@ -1,5 +1,15 @@
 # Release Notes
 
+## Epic 004 Phase 20 - Authenticated Free Voting Foundation
+
+- Added an immutable `VoteAttempt` aggregate and PostgreSQL persistence with voter-scoped RLS.
+- Added authenticated free-vote submission with UUID idempotence, Campaign/Candidate eligibility,
+  email-verification requirements and per-voter quota enforcement.
+- Added own-vote retrieval, stable API errors and audit events without exposing voter identifiers in
+  HTTP responses.
+- Paid/hybrid execution, public voting, Ballots, SMS, Fraud, rankings and results remain deferred.
+- PostgreSQL migration, RLS and concurrency validation remains pending.
+
 ## Unreleased
 
 ### Phase 19 - Runtime Stabilization and Repository Recovery
@@ -18,7 +28,8 @@
 - Phase 19E runtime execution, PostgreSQL validation, Redis validation, full test suite,
   production build, GitHub publication and remote CI remain pending until a capable runtime
   environment is used.
-- Voting remains unauthorized until Phase 19 is completed and reviewed.
+- The project owner authorized the authenticated free-voting foundation on 2026-07-23. Phase 19
+  runtime validation remains open and is not represented as complete by that authorization.
 
 ### Epic 003 Phase 18 - Campaign and Candidate Frontend Management
 

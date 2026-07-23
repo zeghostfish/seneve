@@ -26,16 +26,19 @@ Before implementation, contributors must read:
 15. `docs/domain/CANDIDATE_DOMAIN.md`
 16. `docs/architecture/CANDIDATE_ARCHITECTURE.md`
 17. `docs/api/CANDIDATE_API.md`
-18. `docs/ui/CAMPAIGN_MANAGEMENT_UX.md`
-19. `docs/ui/CANDIDATE_MANAGEMENT_UX.md`
-20. `docs/engineering/RUNTIME_VALIDATION.md`
-21. `docs/engineering/POSTGRESQL_RLS_VALIDATION.md`
-22. `docs/engineering/REDIS_VALIDATION.md`
-23. `docs/engineering/CI.md`
-24. `docs/engineering/SECURITY_REVIEW.md`
-25. `docs/roadmap/PHASE-19-STABILIZATION.md`
-26. `docs/roadmap/PHASE-19-FILE-INVENTORY.md`
-27. `docs/roadmap/EPIC-001-FOUNDATION.md`
+18. `docs/domain/VOTING_DOMAIN.md`
+19. `docs/architecture/VOTING_ARCHITECTURE.md`
+20. `docs/api/VOTING_API.md`
+21. `docs/ui/CAMPAIGN_MANAGEMENT_UX.md`
+22. `docs/ui/CANDIDATE_MANAGEMENT_UX.md`
+23. `docs/engineering/RUNTIME_VALIDATION.md`
+24. `docs/engineering/POSTGRESQL_RLS_VALIDATION.md`
+25. `docs/engineering/REDIS_VALIDATION.md`
+26. `docs/engineering/CI.md`
+27. `docs/engineering/SECURITY_REVIEW.md`
+28. `docs/roadmap/PHASE-19-STABILIZATION.md`
+29. `docs/roadmap/PHASE-19-FILE-INVENTORY.md`
+30. `docs/roadmap/EPIC-001-FOUNDATION.md`
 
 Additional product and module specifications from the source requirements remain authoritative and must be migrated into this documentation set as the repository matures.
 

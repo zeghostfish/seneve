@@ -86,6 +86,9 @@ importers:
       '@seneve/domain-organization':
         specifier: workspace:*
         version: link:../../packages/domain/organization
+      '@seneve/domain-voting':
+        specifier: workspace:*
+        version: link:../../packages/domain/voting
       '@seneve/identity-application':
         specifier: workspace:*
         version: link:../../packages/identity-application
@@ -107,6 +110,12 @@ importers:
       '@seneve/tenant-context':
         specifier: workspace:*
         version: link:../../packages/tenant-context
+      '@seneve/voting-application':
+        specifier: workspace:*
+        version: link:../../packages/voting-application
+      '@seneve/voting-persistence':
+        specifier: workspace:*
+        version: link:../../packages/voting-persistence
       class-transformer:
         specifier: ^0.5.1
         version: 0.5.1
@@ -202,6 +211,9 @@ importers:
       '@seneve/domain-candidate':
         specifier: workspace:*
         version: link:../domain/candidate
+      '@seneve/domain-voting':
+        specifier: workspace:*
+        version: link:../domain/voting
       '@seneve/domain-organization':
         specifier: workspace:*
         version: link:../domain/organization
@@ -317,6 +329,8 @@ importers:
 
   packages/domain/organization: {}
 
+  packages/domain/voting: {}
+
   packages/identity-application:
     dependencies:
       '@seneve/domain-identity':
@@ -378,6 +392,30 @@ importers:
   packages/testing: {}
 
   packages/ui: {}
+
+  packages/voting-application:
+    dependencies:
+      '@seneve/domain-identity':
+        specifier: workspace:*
+        version: link:../domain/identity
+      '@seneve/domain-voting':
+        specifier: workspace:*
+        version: link:../domain/voting
+      '@seneve/tenant-context':
+        specifier: workspace:*
+        version: link:../tenant-context
+
+  packages/voting-persistence:
+    dependencies:
+      '@prisma/client':
+        specifier: ^6.19.3
+        version: 6.19.3(prisma@6.19.3(typescript@5.9.3))(typescript@5.9.3)
+      '@seneve/domain-voting':
+        specifier: workspace:*
+        version: link:../domain/voting
+      '@seneve/organization-persistence':
+        specifier: workspace:*
+        version: link:../organization-persistence
 
 packages:
 

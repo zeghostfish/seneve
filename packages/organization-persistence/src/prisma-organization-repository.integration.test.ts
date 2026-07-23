@@ -1,22 +1,22 @@
 import { PrismaClient } from '@prisma/client';
+import type { OrganizationPersistenceRepositories } from '@seneve/domain-organization';
+import {
+  AsyncLocalStorageTenantContextProvider,
+  platformAdminTenantContext,
+  TenantExecutionContext,
+} from '@seneve/tenant-context';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 
-import {
-  PrismaOrganizationInvitationRepository,
-  PrismaOrganizationMembershipRepository,
-  PrismaOrganizationRepository,
-  PrismaOrganizationUnitOfWork,
-} from './index.js';
+import { PrismaOrganizationRlsUnitOfWork, PrismaTenantRlsTransactionBoundary } from './index.js';
 
 const shouldRunPostgres =
   process.env.RUN_POSTGRES_INTEGRATION === 'true' && Boolean(process.env.DATABASE_URL);
 const describePostgres = shouldRunPostgres ? describe : describe.skip;
 
 const prisma = new PrismaClient();
-const organizations = new PrismaOrganizationRepository(prisma);
-const memberships = new PrismaOrganizationMembershipRepository(prisma);
-const invitations = new PrismaOrganizationInvitationRepository(prisma);
-const unitOfWork = new PrismaOrganizationUnitOfWork(prisma);
+const execution = new TenantExecutionContext(new AsyncLocalStorageTenantContextProvider());
+const rls = new PrismaTenantRlsTransactionBoundary(prisma, execution);
+const unitOfWork = new PrismaOrganizationRlsUnitOfWork(rls);
 
 const now = new Date('2026-07-15T00:00:00.000Z');
 const later = new Date('2026-07-22T00:00:00.000Z');
@@ -42,7 +42,9 @@ describePostgres('Prisma organization repositories', () => {
   it('persists and rehydrates an organization with its initial owner membership', async () => {
     await createOrganization();
 
-    const organization = await organizations.findOrganizationBySlug('seneve-awards');
+    const organization = await withAdminRepositories(({ organizations }) =>
+      organizations.findOrganizationBySlug('seneve-awards'),
+    );
 
     expect(organization).toMatchObject({
       id: organizationId,
@@ -67,24 +69,28 @@ describePostgres('Prisma organization repositories', () => {
     await createOrganization();
 
     await expect(
-      organizations.createOrganization({
-        ...organizationInput('99999999-9999-4999-8999-999999999999', 'org_public_2'),
-        ownerMembership: {
-          ...organizationInput('99999999-9999-4999-8999-999999999999', 'org_public_2')
-            .ownerMembership,
-          membershipId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
-        },
-      }),
+      withAdminRepositories(({ organizations }) =>
+        organizations.createOrganization({
+          ...organizationInput('99999999-9999-4999-8999-999999999999', 'org_public_2'),
+          ownerMembership: {
+            ...organizationInput('99999999-9999-4999-8999-999999999999', 'org_public_2')
+              .ownerMembership,
+            membershipId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+          },
+        }),
+      ),
     ).rejects.toThrow();
     await expect(
-      memberships.createMembership({
-        membershipId: '66666666-6666-4666-8666-666666666666',
-        organizationId,
-        identityId: ownerIdentityId,
-        role: 'VIEWER',
-        createdAt: now,
-        lastChangedBy: ownerIdentityId,
-      }),
+      withAdminRepositories(({ memberships }) =>
+        memberships.createMembership({
+          membershipId: '66666666-6666-4666-8666-666666666666',
+          organizationId,
+          identityId: ownerIdentityId,
+          role: 'VIEWER',
+          createdAt: now,
+          lastChangedBy: ownerIdentityId,
+        }),
+      ),
     ).rejects.toThrow();
   });
 
@@ -92,7 +98,9 @@ describePostgres('Prisma organization repositories', () => {
     await createOrganization();
     await createInvitation();
 
-    const organization = await organizations.findOrganizationById(organizationId);
+    const organization = await withAdminRepositories(({ organizations }) =>
+      organizations.findOrganizationById(organizationId),
+    );
 
     expect(organization?.invitations).toEqual([
       expect.objectContaining({
@@ -102,22 +110,26 @@ describePostgres('Prisma organization repositories', () => {
       }),
     ]);
     await expect(
-      invitations.createInvitation({
-        invitationId: '88888888-8888-4888-8888-888888888888',
-        organizationId,
-        normalizedRecipientEmail: 'new.member@example.com',
-        intendedRole: 'AUDITOR',
-        tokenId: '99999999-9999-4999-8999-999999999999',
-        tokenHash: 'hmac-sha256:second-invitation-hash',
-        invitedBy: ownerIdentityId,
-        createdAt: now,
-        expiresAt: later,
-      }),
+      withAdminRepositories(({ invitations }) =>
+        invitations.createInvitation({
+          invitationId: '88888888-8888-4888-8888-888888888888',
+          organizationId,
+          normalizedRecipientEmail: 'new.member@example.com',
+          intendedRole: 'AUDITOR',
+          tokenId: '99999999-9999-4999-8999-999999999999',
+          tokenHash: 'hmac-sha256:second-invitation-hash',
+          invitedBy: ownerIdentityId,
+          createdAt: now,
+          expiresAt: later,
+        }),
+      ),
     ).rejects.toThrow();
     await expect(
-      prisma.organizationInvitation.findUniqueOrThrow({
-        where: { id: '77777777-7777-4777-8777-777777777777' },
-      }),
+      withAdminTransaction((tx) =>
+        tx.organizationInvitation.findUniqueOrThrow({
+          where: { id: '77777777-7777-4777-8777-777777777777' },
+        }),
+      ),
     ).resolves.not.toMatchObject({
       tokenHash: 'raw-token',
     });
@@ -128,27 +140,33 @@ describePostgres('Prisma organization repositories', () => {
     await createInvitation();
 
     await expect(
-      invitations.acceptInvitationWithMembership({
-        invitationId: '77777777-7777-4777-8777-777777777777',
-        expectedOrganizationId: organizationId,
-        acceptingIdentityId: secondIdentityId,
-        recipientEmail: 'NEW.MEMBER@example.com',
-        membershipId: '88888888-8888-4888-8888-888888888888',
-        changedAt: new Date('2026-07-16T00:00:00.000Z'),
-      }),
+      withAdminRepositories(({ invitations }) =>
+        invitations.acceptInvitationWithMembership({
+          invitationId: '77777777-7777-4777-8777-777777777777',
+          expectedOrganizationId: organizationId,
+          acceptingIdentityId: secondIdentityId,
+          recipientEmail: 'NEW.MEMBER@example.com',
+          membershipId: '88888888-8888-4888-8888-888888888888',
+          changedAt: new Date('2026-07-16T00:00:00.000Z'),
+        }),
+      ),
     ).resolves.toMatchObject({ outcome: 'UPDATED' });
     await expect(
-      invitations.acceptInvitationWithMembership({
-        invitationId: '77777777-7777-4777-8777-777777777777',
-        expectedOrganizationId: organizationId,
-        acceptingIdentityId: thirdIdentityId,
-        recipientEmail: 'new.member@example.com',
-        membershipId: '99999999-9999-4999-8999-999999999999',
-        changedAt: new Date('2026-07-16T01:00:00.000Z'),
-      }),
+      withAdminRepositories(({ invitations }) =>
+        invitations.acceptInvitationWithMembership({
+          invitationId: '77777777-7777-4777-8777-777777777777',
+          expectedOrganizationId: organizationId,
+          acceptingIdentityId: thirdIdentityId,
+          recipientEmail: 'new.member@example.com',
+          membershipId: '99999999-9999-4999-8999-999999999999',
+          changedAt: new Date('2026-07-16T01:00:00.000Z'),
+        }),
+      ),
     ).resolves.toMatchObject({ outcome: 'CONFLICT' });
 
-    const organization = await organizations.findOrganizationById(organizationId);
+    const organization = await withAdminRepositories(({ organizations }) =>
+      organizations.findOrganizationById(organizationId),
+    );
 
     expect(organization?.invitations[0]?.status).toBe('ACCEPTED');
     expect(organization?.memberships).toContainEqual(
@@ -164,27 +182,33 @@ describePostgres('Prisma organization repositories', () => {
 
   it('transfers ownership as one persistence operation', async () => {
     await createOrganization();
-    await memberships.createMembership({
-      membershipId: '66666666-6666-4666-8666-666666666666',
-      organizationId,
-      identityId: secondIdentityId,
-      role: 'ADMINISTRATOR',
-      createdAt: now,
-      lastChangedBy: ownerIdentityId,
-    });
+    await withAdminRepositories(({ memberships }) =>
+      memberships.createMembership({
+        membershipId: '66666666-6666-4666-8666-666666666666',
+        organizationId,
+        identityId: secondIdentityId,
+        role: 'ADMINISTRATOR',
+        createdAt: now,
+        lastChangedBy: ownerIdentityId,
+      }),
+    );
 
     await expect(
-      memberships.transferOwnership({
-        organizationId,
-        currentOwnerMembershipId: ownerMembershipId,
-        targetMembershipId: '66666666-6666-4666-8666-666666666666',
-        previousOwnerRole: 'ADMINISTRATOR',
-        transferredAt: later,
-        actorId: ownerIdentityId,
-      }),
+      withAdminRepositories(({ memberships }) =>
+        memberships.transferOwnership({
+          organizationId,
+          currentOwnerMembershipId: ownerMembershipId,
+          targetMembershipId: '66666666-6666-4666-8666-666666666666',
+          previousOwnerRole: 'ADMINISTRATOR',
+          transferredAt: later,
+          actorId: ownerIdentityId,
+        }),
+      ),
     ).resolves.toMatchObject({ outcome: 'UPDATED' });
 
-    const organization = await organizations.findOrganizationById(organizationId);
+    const organization = await withAdminRepositories(({ organizations }) =>
+      organizations.findOrganizationById(organizationId),
+    );
 
     expect(organization?.memberships).toEqual(
       expect.arrayContaining([
@@ -199,13 +223,17 @@ describePostgres('Prisma organization repositories', () => {
 
   it('rolls back a unit-of-work transaction on failure', async () => {
     await expect(
-      unitOfWork.transaction(async (repositories) => {
+      withAdminRepositories(async (repositories) => {
         await repositories.organizations.createOrganization(organizationInput());
         throw new Error('force rollback');
       }),
     ).rejects.toThrow('force rollback');
 
-    await expect(organizations.findOrganizationById(organizationId)).resolves.toBeNull();
+    await expect(
+      withAdminRepositories(({ organizations }) =>
+        organizations.findOrganizationById(organizationId),
+      ),
+    ).resolves.toBeNull();
   });
 });
 
@@ -230,21 +258,25 @@ function organizationInput(id = organizationId, publicId: string | null = 'org_p
 }
 
 async function createOrganization(): Promise<void> {
-  await organizations.createOrganization(organizationInput());
+  await withAdminRepositories(({ organizations }) =>
+    organizations.createOrganization(organizationInput()),
+  );
 }
 
 async function createInvitation(): Promise<void> {
-  await invitations.createInvitation({
-    invitationId: '77777777-7777-4777-8777-777777777777',
-    organizationId,
-    normalizedRecipientEmail: 'new.member@example.com',
-    intendedRole: 'VIEWER',
-    tokenId: '77777777-7777-4777-8777-777777777777',
-    tokenHash: 'hmac-sha256:first-invitation-hash',
-    invitedBy: ownerIdentityId,
-    createdAt: now,
-    expiresAt: later,
-  });
+  await withAdminRepositories(({ invitations }) =>
+    invitations.createInvitation({
+      invitationId: '77777777-7777-4777-8777-777777777777',
+      organizationId,
+      normalizedRecipientEmail: 'new.member@example.com',
+      intendedRole: 'VIEWER',
+      tokenId: '77777777-7777-4777-8777-777777777777',
+      tokenHash: 'hmac-sha256:first-invitation-hash',
+      invitedBy: ownerIdentityId,
+      createdAt: now,
+      expiresAt: later,
+    }),
+  );
 }
 
 async function createIdentity(identityId: string, normalizedEmail: string): Promise<void> {
@@ -291,9 +323,14 @@ async function createIdentity(identityId: string, normalizedEmail: string): Prom
 }
 
 async function cleanupTables(): Promise<void> {
-  await prisma.organizationMembership.deleteMany();
-  await prisma.organizationInvitation.deleteMany();
-  await prisma.organization.deleteMany();
+  await withAdminTransaction(async (tx) => {
+    await tx.voteAttempt.deleteMany();
+    await tx.candidate.deleteMany();
+    await tx.campaign.deleteMany();
+    await tx.organizationMembership.deleteMany();
+    await tx.organizationInvitation.deleteMany();
+    await tx.organization.deleteMany();
+  });
   await prisma.identitySecurityEvent.deleteMany();
   await prisma.passwordResetToken.deleteMany();
   await prisma.emailVerificationToken.deleteMany();
@@ -304,4 +341,30 @@ async function cleanupTables(): Promise<void> {
   await prisma.identityEmail.deleteMany();
   await prisma.user.deleteMany();
   await prisma.identity.deleteMany();
+}
+
+async function withAdminRepositories<T>(
+  work: (repositories: OrganizationPersistenceRepositories) => Promise<T>,
+): Promise<T> {
+  return execution.run(
+    platformAdminTenantContext({
+      identityId: ownerIdentityId,
+      correlationId: 'correlation-organization-persistence',
+      executionSource: 'INTERNAL_WORKFLOW',
+    }),
+    () => unitOfWork.transaction(work),
+  );
+}
+
+async function withAdminTransaction<T>(
+  work: Parameters<PrismaTenantRlsTransactionBoundary['transaction']>[0],
+): Promise<T> {
+  return execution.run(
+    platformAdminTenantContext({
+      identityId: ownerIdentityId,
+      correlationId: 'correlation-organization-persistence',
+      executionSource: 'INTERNAL_WORKFLOW',
+    }),
+    () => rls.transaction(work),
+  ) as Promise<T>;
 }
