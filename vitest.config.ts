@@ -1,5 +1,7 @@
 import { defineConfig } from 'vitest/config';
 
+const runsPostgresIntegration = process.env.RUN_POSTGRES_INTEGRATION === 'true';
+
 export default defineConfig({
   resolve: {
     alias: {
@@ -81,6 +83,7 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     include: ['apps/**/*.test.ts', 'packages/**/*.test.ts'],
+    fileParallelism: !runsPostgresIntegration,
     coverage: {
       reporter: ['text', 'lcov'],
     },

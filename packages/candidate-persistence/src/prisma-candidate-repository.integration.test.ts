@@ -70,6 +70,16 @@ describePostgres('PrismaCandidateRepository PostgreSQL isolation', () => {
   });
 
   it('enforces campaign-scoped slug uniqueness and full-list reorder atomically', async () => {
+    await expect(
+      execution.run(tenantContext(tenantA, identityA, 'candidate-correlation-duplicate'), () =>
+        rls.transaction(async (tx) => {
+          const repository = new PrismaCandidateRepository(tx);
+          await repository.createCandidate(candidateSnapshot(tenantA, campaignA, 'candidate-a', 1));
+          await repository.createCandidate(candidateSnapshot(tenantA, campaignA, 'candidate-a', 2));
+        }),
+      ),
+    ).rejects.toThrow();
+
     await execution.run(tenantContext(tenantA, identityA, 'candidate-correlation-reorder'), () =>
       rls.transaction(async (tx) => {
         const repository = new PrismaCandidateRepository(tx);
@@ -78,9 +88,6 @@ describePostgres('PrismaCandidateRepository PostgreSQL isolation', () => {
         await repository.createCandidate(first);
         await repository.createCandidate(second);
 
-        await expect(
-          repository.createCandidate(candidateSnapshot(tenantA, campaignA, 'candidate-a', 3)),
-        ).rejects.toThrow();
         await expect(
           repository.reorderCandidates({
             organizationId: tenantA,
