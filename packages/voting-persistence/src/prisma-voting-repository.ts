@@ -3,6 +3,7 @@ import type {
   VoteAttemptRepository,
   VoteAttemptDomainEvent,
   VoteAttemptSnapshot,
+  VotingReceiptListResult,
   VotingRepositories,
   VotingUnitOfWork,
 } from '@seneve/domain-voting';
@@ -61,6 +62,52 @@ export class PrismaVoteAttemptRepository implements VoteAttemptRepository {
       },
     });
     return record ? toSnapshot(record) : null;
+  }
+
+  async listOwned(input: {
+    readonly organizationId: string;
+    readonly voterIdentityId: string;
+    readonly limit: number;
+    readonly cursor: string | null;
+  }): Promise<VotingReceiptListResult> {
+    const records = await this.prisma.voteAttempt.findMany({
+      where: {
+        organizationId: input.organizationId,
+        voterIdentityId: input.voterIdentityId,
+        status: 'CONFIRMED',
+      },
+      select: {
+        id: true,
+        organizationId: true,
+        campaignId: true,
+        candidateId: true,
+        status: true,
+        createdAt: true,
+        confirmedAt: true,
+        campaign: { select: { name: true } },
+        candidate: { select: { displayName: true } },
+      },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: input.limit + 1,
+      ...(input.cursor ? { cursor: { id: input.cursor }, skip: 1 } : {}),
+    });
+    const hasNextPage = records.length > input.limit;
+    const visible = hasNextPage ? records.slice(0, input.limit) : records;
+
+    return {
+      receipts: visible.map((record) => ({
+        id: record.id,
+        organizationId: record.organizationId,
+        campaignId: record.campaignId,
+        campaignName: record.campaign.name,
+        candidateId: record.candidateId,
+        candidateDisplayName: record.candidate.displayName,
+        status: record.status,
+        createdAt: record.createdAt,
+        confirmedAt: record.confirmedAt,
+      })),
+      nextCursor: hasNextPage ? (visible.at(-1)?.id ?? null) : null,
+    };
   }
 }
 

@@ -100,6 +100,31 @@ describe('VotingApplicationService', () => {
       }),
     ).rejects.toThrowError(expect.objectContaining({ code: 'VOTING_CAMPAIGN_PRIVATE' }));
   });
+
+  it('lists only the authenticated identity confirmed vote receipts', async () => {
+    const deps = dependencies();
+    const service = new VotingApplicationService(deps);
+    await service.submitFreeVote(command());
+
+    const result = await service.listOwnVotes({
+      voterIdentityId,
+      organizationId,
+      limit: 25,
+      cursor: null,
+      correlationId: 'corr-voting-history',
+    });
+
+    expect(result).toEqual({
+      receipts: [
+        expect.objectContaining({
+          campaignName: 'Seneve Awards',
+          candidateDisplayName: 'Candidate One',
+          status: 'CONFIRMED',
+        }),
+      ],
+      nextCursor: null,
+    });
+  });
 });
 
 function command() {
@@ -153,6 +178,28 @@ function dependencies(options: { campaignVisibility?: string } = {}) {
           vote.voterIdentityId === input.voterIdentityId
           ? vote
           : null;
+      },
+      async listOwned(input) {
+        const receipts = [...votes.values()]
+          .filter(
+            (vote) =>
+              vote.organizationId === input.organizationId &&
+              vote.voterIdentityId === input.voterIdentityId &&
+              vote.status === 'CONFIRMED',
+          )
+          .slice(0, input.limit)
+          .map((vote) => ({
+            id: vote.id,
+            organizationId: vote.organizationId,
+            campaignId: vote.campaignId,
+            campaignName: 'Seneve Awards',
+            candidateId: vote.candidateId,
+            candidateDisplayName: 'Candidate One',
+            status: vote.status,
+            createdAt: vote.createdAt,
+            confirmedAt: vote.confirmedAt,
+          }));
+        return { receipts, nextCursor: null };
       },
     },
     async findCampaign() {

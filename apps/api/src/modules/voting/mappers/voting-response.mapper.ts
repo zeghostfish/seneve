@@ -1,4 +1,4 @@
-import type { VoteAttemptSnapshot } from '@seneve/domain-voting';
+import type { VoteAttemptSnapshot, VotingReceiptReadModel } from '@seneve/domain-voting';
 import type { VotingBallotResult } from '@seneve/voting-application';
 
 export function votingResponse(vote: VoteAttemptSnapshot) {
@@ -41,5 +41,19 @@ export function ballotResponse(result: VotingBallotResult) {
     })),
     confirmedVoteCount: result.confirmedVoteCount,
     remainingVotes: result.remainingVotes,
+  };
+}
+
+export function votingReceiptResponse(receipt: VotingReceiptReadModel) {
+  return {
+    id: receipt.id,
+    organizationId: receipt.organizationId,
+    campaignId: receipt.campaignId,
+    campaignName: receipt.campaignName,
+    candidateId: receipt.candidateId,
+    candidateDisplayName: receipt.candidateDisplayName,
+    status: receipt.status,
+    createdAt: receipt.createdAt.toISOString(),
+    confirmedAt: receipt.confirmedAt?.toISOString() ?? null,
   };
 }

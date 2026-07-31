@@ -3,6 +3,7 @@ import type {
   VoteAttemptSnapshot,
   VotingCampaignReadModel,
   VotingCandidateReadModel,
+  VotingReceiptListResult,
   VotingUnitOfWork,
 } from '@seneve/domain-voting';
 import type { TenantExecutionContext } from '@seneve/tenant-context';
@@ -35,3 +36,5 @@ export interface VotingBallotResult {
   readonly confirmedVoteCount: number;
   readonly remainingVotes: number;
 }
+
+export type VotingHistoryResult = VotingReceiptListResult;
