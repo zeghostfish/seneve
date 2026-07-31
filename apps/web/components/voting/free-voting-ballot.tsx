@@ -102,7 +102,15 @@ export function FreeVotingBallot({
   return (
     <form className="grid gap-6" onSubmit={submit}>
       <header className="border-b border-slate-200 pb-5">
-        <p className="text-sm font-semibold text-[#b20000]">Official ballot</p>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm font-semibold text-[#b20000]">Official ballot</p>
+          <Link
+            href={`/vote/${organizationId}/history`}
+            className="text-sm font-semibold text-slate-700 underline underline-offset-4"
+          >
+            My voting receipts
+          </Link>
+        </div>
         <h1 className="mt-2 text-3xl font-semibold text-slate-950">{ballot.campaign.name}</h1>
         {ballot.campaign.description ? (
           <p className="mt-3 max-w-3xl text-slate-600">{ballot.campaign.description}</p>

@@ -13,6 +13,10 @@ Campaign plus eligible Candidate presentation fields. The web application keeps 
 the existing authentication provider, generates a UUID idempotency key per submission attempt and
 refetches the authoritative ballot after confirmation.
 
+The receipt query uses the same voter-scoped tenant context. It joins only safe Campaign and
+Candidate presentation fields to the authenticated identity's confirmed attempts, applies bounded
+cursor pagination and never builds vote totals or result projections.
+
 The persistence adapter executes inside `VOTE_SUBMISSION`, an authenticated tenant context that
 contains an Organization and Identity but no fabricated Organization membership or management
 permission.

@@ -38,6 +38,21 @@ describe('Voting API client', () => {
       }),
     );
   });
+
+  it('loads paginated receipts for the authenticated identity', async () => {
+    vi.stubGlobal('fetch', fetchMock);
+    fetchMock.mockResolvedValue(json({ receipts: [], nextCursor: null }));
+
+    await votingApi.listOwnVotes('access-token', 'org-1', {
+      limit: 10,
+      cursor: 'receipt-1',
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:3000/api/v1/voting/organizations/org-1/votes?limit=10&cursor=receipt-1',
+      expect.objectContaining({ method: 'GET', credentials: 'include' }),
+    );
+  });
 });
 
 function json(payload: unknown) {

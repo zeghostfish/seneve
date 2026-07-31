@@ -11,6 +11,7 @@ import type {
   SubmitVoteCommand,
   VoteCommandResult,
   VotingBallotResult,
+  VotingHistoryResult,
   VotingApplicationDependencies,
 } from './contracts.js';
 
@@ -172,6 +173,25 @@ export class VotingApplicationService {
       throw new VotingApplicationError('VOTE_NOT_FOUND', 'Vote not found.');
     }
     return { vote, replayed: false };
+  }
+
+  async listOwnVotes(input: {
+    readonly voterIdentityId: string;
+    readonly organizationId: string;
+    readonly limit: number;
+    readonly cursor: string | null;
+    readonly correlationId: string;
+  }): Promise<VotingHistoryResult> {
+    const context = authenticatedVotingTenantContext({
+      tenantId: input.organizationId,
+      identityId: input.voterIdentityId,
+      correlationId: input.correlationId,
+      executionSource: 'HTTP_REQUEST',
+    });
+
+    return this.deps.executionContext.run(context, () =>
+      this.deps.unitOfWork.transaction((repositories) => repositories.votes.listOwned(input)),
+    );
   }
 
   private async requireIdentity(identityId: string) {

@@ -96,6 +96,47 @@ describePostgres('Prisma voting persistence and RLS', () => {
     );
   });
 
+  it('lists paginated confirmed receipts for only the authenticated identity', async () => {
+    await execution.run(voterContext(voterA), () =>
+      unitOfWork.transaction(({ votes }) => votes.create(attempt())),
+    );
+
+    await execution.run(voterContext(voterA), () =>
+      unitOfWork.transaction(async ({ votes }) => {
+        await expect(
+          votes.listOwned({
+            organizationId,
+            voterIdentityId: voterA,
+            limit: 25,
+            cursor: null,
+          }),
+        ).resolves.toEqual({
+          receipts: [
+            expect.objectContaining({
+              id: attempt().id,
+              campaignName: 'Voting campaign',
+              candidateDisplayName: 'Eligible candidate',
+            }),
+          ],
+          nextCursor: null,
+        });
+      }),
+    );
+
+    await execution.run(voterContext(voterB), () =>
+      unitOfWork.transaction(async ({ votes }) => {
+        await expect(
+          votes.listOwned({
+            organizationId,
+            voterIdentityId: voterB,
+            limit: 25,
+            cursor: null,
+          }),
+        ).resolves.toEqual({ receipts: [], nextCursor: null });
+      }),
+    );
+  });
+
   it('fails closed without tenant execution context', async () => {
     await expect(unitOfWork.transaction(async () => undefined)).rejects.toThrow();
   });
@@ -185,6 +226,8 @@ async function seed(): Promise<void> {
             status: 'ACTIVE',
             defaultLocale: 'en',
             timezone: 'Africa/Lome',
+            createdAt: now,
+            updatedAt: now,
             activatedAt: now,
           },
         });

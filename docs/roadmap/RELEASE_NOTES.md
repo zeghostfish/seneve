@@ -1,5 +1,13 @@
 # Release Notes
 
+## 2026-07-31
+
+- added authenticated, Organization-scoped voting receipt history;
+- added bounded cursor pagination for a voter's confirmed receipts;
+- added safe Campaign and Candidate presentation fields without totals or rankings;
+- added a responsive voting-history route and ballot navigation;
+- added application, HTTP, API-client and PostgreSQL/RLS coverage.
+
 ## Epic 004 Phase 21 - Authenticated Ballot Experience
 
 - Added an authenticated ballot endpoint for active non-private free Campaigns.

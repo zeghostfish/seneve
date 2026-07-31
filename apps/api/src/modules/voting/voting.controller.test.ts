@@ -101,6 +101,45 @@ describe('VotingController', () => {
       response: { code: 'VOTING_QUOTA_REACHED', correlationId: 'corr-vote-http' },
     });
   });
+
+  it('maps paginated own-vote receipts without exposing voter identity', async () => {
+    const controller = new VotingController({
+      async listOwnVotes() {
+        return {
+          receipts: [
+            {
+              id: voteAttemptId,
+              organizationId,
+              campaignId,
+              campaignName: 'Seneve Awards',
+              candidateId,
+              candidateDisplayName: 'Candidate One',
+              status: 'CONFIRMED',
+              createdAt: now,
+              confirmedAt: now,
+            },
+          ],
+          nextCursor: null,
+        };
+      },
+    } as never);
+
+    const response = await controller.listOwn({ organizationId }, { limit: 25 }, request());
+
+    expect(response).toMatchObject({
+      receipts: [
+        {
+          id: voteAttemptId,
+          campaignName: 'Seneve Awards',
+          candidateDisplayName: 'Candidate One',
+          status: 'CONFIRMED',
+        },
+      ],
+      nextCursor: null,
+      correlationId: 'corr-vote-http',
+    });
+    expect(response.receipts[0]).not.toHaveProperty('voterIdentityId');
+  });
 });
 
 function request(): AuthenticatedHttpRequest {

@@ -1,5 +1,5 @@
 import { apiClient } from './client';
-import type { VotingBallot, VotingReceipt } from './types';
+import type { VotingBallot, VotingHistoryReceipt, VotingReceipt } from './types';
 
 export const votingApi = {
   getBallot(accessToken: string, organizationId: string, campaignId: string) {
@@ -25,5 +25,21 @@ export const votingApi = {
       accessToken,
       body: { candidateId, requestId },
     });
+  },
+
+  listOwnVotes(
+    accessToken: string,
+    organizationId: string,
+    options: { readonly limit?: number; readonly cursor?: string | null } = {},
+  ) {
+    const query = new URLSearchParams({ limit: String(options.limit ?? 25) });
+    if (options.cursor) {
+      query.set('cursor', options.cursor);
+    }
+    return apiClient.request<{
+      readonly receipts: readonly VotingHistoryReceipt[];
+      readonly nextCursor: string | null;
+      readonly correlationId: string;
+    }>(`/voting/organizations/${organizationId}/votes?${query.toString()}`, { accessToken });
   },
 };

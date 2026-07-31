@@ -30,6 +30,23 @@ export interface VotingCandidateReadModel {
   readonly status: string;
 }
 
+export interface VotingReceiptReadModel {
+  readonly id: string;
+  readonly organizationId: string;
+  readonly campaignId: string;
+  readonly campaignName: string;
+  readonly candidateId: string;
+  readonly candidateDisplayName: string;
+  readonly status: string;
+  readonly createdAt: Date;
+  readonly confirmedAt: Date | null;
+}
+
+export interface VotingReceiptListResult {
+  readonly receipts: readonly VotingReceiptReadModel[];
+  readonly nextCursor: string | null;
+}
+
 export interface VoteAttemptRepository {
   lockVoter(input: {
     readonly organizationId: string;
@@ -53,6 +70,12 @@ export interface VoteAttemptRepository {
     readonly voterIdentityId: string;
     readonly voteAttemptId: string;
   }): Promise<VoteAttemptSnapshot | null>;
+  listOwned(input: {
+    readonly organizationId: string;
+    readonly voterIdentityId: string;
+    readonly limit: number;
+    readonly cursor: string | null;
+  }): Promise<VotingReceiptListResult>;
 }
 
 export interface VotingRepositories {

@@ -177,3 +177,15 @@ export interface VotingReceipt {
   readonly rejectedAt: string | null;
   readonly version: number;
 }
+
+export interface VotingHistoryReceipt {
+  readonly id: string;
+  readonly organizationId: string;
+  readonly campaignId: string;
+  readonly campaignName: string;
+  readonly candidateId: string;
+  readonly candidateDisplayName: string;
+  readonly status: 'CONFIRMED';
+  readonly createdAt: string;
+  readonly confirmedAt: string;
+}

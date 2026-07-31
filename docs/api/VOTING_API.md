@@ -35,6 +35,17 @@ successful replay and excludes voter identity and request identifiers.
 Only the owning identity can resolve the attempt. Cross-identity and cross-tenant lookups return not
 found.
 
+## List Own Voting Receipts
+
+`GET /voting/organizations/:organizationId/votes?limit=25&cursor=:voteAttemptId`
+
+Returns confirmed receipts for the authenticated identity in reverse chronological order. Each
+receipt contains safe Campaign and Candidate names, the immutable vote-attempt identifier and the
+confirmation time. The response includes `nextCursor` when another page exists.
+
+The endpoint excludes voter identifiers, idempotency keys, vote totals and rankings. A cursor never
+grants access to a receipt outside the authenticated voter and Organization context.
+
 ## Stable Errors
 
 - `VOTE_NOT_FOUND`
@@ -59,3 +70,6 @@ Database errors, policy details and cross-tenant existence are never exposed.
 
 The route requires the existing Seneve authentication session. It uses the ballot endpoint and
 submits a client-generated UUID through the free-vote endpoint. Anonymous voting is not supported.
+
+`/vote/:organizationId/history` lists the signed-in identity's confirmed voting receipts for the
+Organization.

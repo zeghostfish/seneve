@@ -5,6 +5,7 @@ import {
   Inject,
   Param,
   Post,
+  Query,
   Req,
   UnauthorizedException,
   UseGuards,
@@ -19,9 +20,15 @@ import {
   SubmitFreeVoteDto,
   VoteAttemptParamDto,
   VotingCampaignParamDto,
+  VotingHistoryQueryDto,
+  VotingOrganizationParamDto,
 } from './dto/voting.dto.js';
 import { mapVotingError } from './mappers/voting-error.mapper.js';
-import { ballotResponse, votingResponse } from './mappers/voting-response.mapper.js';
+import {
+  ballotResponse,
+  votingReceiptResponse,
+  votingResponse,
+} from './mappers/voting-response.mapper.js';
 import { VOTING_APPLICATION_SERVICE } from './voting.tokens.js';
 
 @ApiTags('Voting')
@@ -92,6 +99,33 @@ export class VotingController {
         correlationId,
       });
       return { vote: votingResponse(result.vote), correlationId };
+    } catch (error) {
+      throw mapVotingError(error, correlationId);
+    }
+  }
+
+  @Get('votes')
+  @ApiOperation({ summary: 'List the authenticated identity confirmed vote receipts.' })
+  async listOwn(
+    @Param() params: VotingOrganizationParamDto,
+    @Query() query: VotingHistoryQueryDto,
+    @Req() request: AuthenticatedHttpRequest,
+  ) {
+    const correlationId = correlationIdFrom(request);
+    const identityId = requireIdentity(request, correlationId);
+    try {
+      const result = await this.voting.listOwnVotes({
+        voterIdentityId: identityId,
+        organizationId: params.organizationId,
+        limit: query.limit ?? 25,
+        cursor: query.cursor ?? null,
+        correlationId,
+      });
+      return {
+        receipts: result.receipts.map(votingReceiptResponse),
+        nextCursor: result.nextCursor,
+        correlationId,
+      };
     } catch (error) {
       throw mapVotingError(error, correlationId);
     }

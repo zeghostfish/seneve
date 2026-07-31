@@ -46,6 +46,17 @@ Opening a ballot applies the same identity, email-verification, Campaign visibil
 schedule checks that protect submission. Candidate eligibility and quota are re-evaluated
 transactionally when a vote is submitted.
 
+## Voting Receipts
+
+An authenticated identity may list only its own confirmed vote receipts within the active
+Organization. A receipt identifies the Campaign and Candidate selected, confirmation time and
+immutable vote-attempt identifier. It does not expose request identifiers, voter identifiers,
+totals, ranks or another identity's activity.
+
+Receipt listing is ordered by creation time and identifier in descending order and uses bounded
+cursor pagination. PostgreSQL RLS remains the authoritative isolation boundary in addition to the
+identity and Organization predicates applied by the repository.
+
 ## Events
 
 - `VoteAttemptCreated`
