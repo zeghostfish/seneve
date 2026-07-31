@@ -85,10 +85,15 @@ export class PrismaVotingRlsUnitOfWork implements VotingUnitOfWork {
               select: {
                 id: true,
                 organizationId: true,
+                name: true,
+                description: true,
                 status: true,
                 visibility: true,
+                timezone: true,
+                locale: true,
                 votingMode: true,
                 votesPerVoter: true,
+                allowMultipleCandidates: true,
                 requiresEmailVerification: true,
                 startsAt: true,
                 endsAt: true,
@@ -101,7 +106,17 @@ export class PrismaVotingRlsUnitOfWork implements VotingUnitOfWork {
                 organizationId: input.organizationId,
                 campaignId: input.campaignId,
               },
-              select: { id: true, organizationId: true, campaignId: true, status: true },
+              select: candidateSelection,
+            }),
+          listEligibleCandidates: async (input) =>
+            tx.candidate.findMany({
+              where: {
+                organizationId: input.organizationId,
+                campaignId: input.campaignId,
+                status: 'ELIGIBLE',
+              },
+              select: candidateSelection,
+              orderBy: [{ position: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }],
             }),
         });
       },
@@ -109,6 +124,18 @@ export class PrismaVotingRlsUnitOfWork implements VotingUnitOfWork {
     );
   }
 }
+
+const candidateSelection = {
+  id: true,
+  organizationId: true,
+  campaignId: true,
+  displayName: true,
+  slug: true,
+  shortDescription: true,
+  imageAssetId: true,
+  position: true,
+  status: true,
+} as const;
 
 type VoteRecord = Prisma.VoteAttemptGetPayload<Record<string, never>>;
 

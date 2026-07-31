@@ -75,6 +75,14 @@ export default function CampaignDetailPage({
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
+            {campaign.status === 'ACTIVE' && campaign.visibility !== 'PRIVATE' ? (
+              <Link
+                href={`/vote/${currentOrganization.id}/${campaign.id}`}
+                className="rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold hover:bg-slate-50"
+              >
+                Open ballot
+              </Link>
+            ) : null}
             <Link
               href={`/campaigns/${campaign.id}/settings`}
               className="rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold hover:bg-slate-50"

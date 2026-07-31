@@ -1,21 +1,74 @@
-import { VotingDomainError, VoteAttempt, assertVotingEligibility } from '@seneve/domain-voting';
+import {
+  VotingDomainError,
+  VoteAttempt,
+  assertVotingCampaignAccess,
+  assertVotingEligibility,
+} from '@seneve/domain-voting';
 import { authenticatedVotingTenantContext } from '@seneve/tenant-context';
 
 import { VotingApplicationError } from './application-error.js';
 import type {
   SubmitVoteCommand,
   VoteCommandResult,
+  VotingBallotResult,
   VotingApplicationDependencies,
 } from './contracts.js';
 
 export class VotingApplicationService {
   constructor(private readonly deps: VotingApplicationDependencies) {}
 
+  async getBallot(input: {
+    readonly voterIdentityId: string;
+    readonly organizationId: string;
+    readonly campaignId: string;
+    readonly correlationId: string;
+  }): Promise<VotingBallotResult> {
+    const identity = await this.requireIdentity(input.voterIdentityId);
+    const context = authenticatedVotingTenantContext({
+      tenantId: input.organizationId,
+      identityId: input.voterIdentityId,
+      correlationId: input.correlationId,
+      executionSource: 'HTTP_REQUEST',
+    });
+
+    return this.deps.executionContext.run(context, () =>
+      this.deps.unitOfWork.transaction(async (repositories) => {
+        const campaign = await repositories.findCampaign(input);
+        if (!campaign) {
+          throw new VotingApplicationError('VOTING_CAMPAIGN_NOT_FOUND', 'Campaign not found.');
+        }
+
+        translateDomainErrors(() =>
+          assertVotingCampaignAccess({
+            identityStatus: identity.status,
+            emailVerified: Boolean(identity.primaryEmail.verifiedAt),
+            campaignStatus: campaign.status,
+            campaignVisibility: campaign.visibility,
+            votingMode: campaign.votingMode,
+            requiresEmailVerification: campaign.requiresEmailVerification,
+            startsAt: campaign.startsAt,
+            endsAt: campaign.endsAt,
+            now: this.deps.clock.now(),
+          }),
+        );
+
+        const [candidates, confirmedVoteCount] = await Promise.all([
+          repositories.listEligibleCandidates(input),
+          repositories.votes.countConfirmed(input),
+        ]);
+
+        return {
+          campaign,
+          candidates,
+          confirmedVoteCount,
+          remainingVotes: Math.max(0, campaign.votesPerVoter - confirmedVoteCount),
+        };
+      }),
+    );
+  }
+
   async submitFreeVote(command: SubmitVoteCommand): Promise<VoteCommandResult> {
-    const identity = await this.deps.identities.findById(command.voterIdentityId);
-    if (!identity) {
-      throw new VotingApplicationError('VOTING_IDENTITY_NOT_FOUND', 'Voting identity not found.');
-    }
+    const identity = await this.requireIdentity(command.voterIdentityId);
 
     const context = authenticatedVotingTenantContext({
       tenantId: command.organizationId,
@@ -119,6 +172,14 @@ export class VotingApplicationService {
       throw new VotingApplicationError('VOTE_NOT_FOUND', 'Vote not found.');
     }
     return { vote, replayed: false };
+  }
+
+  private async requireIdentity(identityId: string) {
+    const identity = await this.deps.identities.findById(identityId);
+    if (!identity) {
+      throw new VotingApplicationError('VOTING_IDENTITY_NOT_FOUND', 'Voting identity not found.');
+    }
+    return identity;
   }
 }
 

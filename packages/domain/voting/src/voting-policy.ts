@@ -15,7 +15,12 @@ export interface VotingEligibilityInput {
   readonly now: Date;
 }
 
-export function assertVotingEligibility(input: VotingEligibilityInput): void {
+export type VotingCampaignAccessInput = Omit<
+  VotingEligibilityInput,
+  'candidateStatus' | 'confirmedVoteCount' | 'votesPerVoter'
+>;
+
+export function assertVotingCampaignAccess(input: VotingCampaignAccessInput): void {
   if (input.identityStatus !== 'ACTIVE') {
     throw new VotingDomainError('VOTING_IDENTITY_INACTIVE', 'The voting identity is not active.');
   }
@@ -51,6 +56,10 @@ export function assertVotingEligibility(input: VotingEligibilityInput): void {
       'Paid and hybrid voting require the payment workflow.',
     );
   }
+}
+
+export function assertVotingEligibility(input: VotingEligibilityInput): void {
+  assertVotingCampaignAccess(input);
 
   if (input.candidateStatus !== 'ELIGIBLE') {
     throw new VotingDomainError(

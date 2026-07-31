@@ -67,6 +67,39 @@ describe('VotingApplicationService', () => {
       }),
     ).rejects.toThrowError(expect.objectContaining({ code: 'VOTING_QUOTA_REACHED' }));
   });
+
+  it('returns a safe ordered ballot with the remaining quota', async () => {
+    const deps = dependencies();
+    const service = new VotingApplicationService(deps);
+
+    const result = await service.getBallot({
+      voterIdentityId,
+      organizationId,
+      campaignId,
+      correlationId: 'corr-ballot-application',
+    });
+
+    expect(result).toMatchObject({
+      campaign: { id: campaignId, name: 'Seneve Awards' },
+      candidates: [{ id: candidateId, displayName: 'Candidate One', position: 1 }],
+      confirmedVoteCount: 0,
+      remainingVotes: 1,
+    });
+  });
+
+  it('does not expose private campaigns as a ballot', async () => {
+    const deps = dependencies({ campaignVisibility: 'PRIVATE' });
+    const service = new VotingApplicationService(deps);
+
+    await expect(
+      service.getBallot({
+        voterIdentityId,
+        organizationId,
+        campaignId,
+        correlationId: 'corr-private-ballot',
+      }),
+    ).rejects.toThrowError(expect.objectContaining({ code: 'VOTING_CAMPAIGN_PRIVATE' }));
+  });
 });
 
 function command() {
@@ -80,7 +113,7 @@ function command() {
   };
 }
 
-function dependencies() {
+function dependencies(options: { campaignVisibility?: string } = {}) {
   const votes = new Map<string, VoteAttemptSnapshot>();
   const recordedEvents: string[] = [];
   const repositories: VotingRepositories = {
@@ -126,10 +159,15 @@ function dependencies() {
       return {
         id: campaignId,
         organizationId,
+        name: 'Seneve Awards',
+        description: 'Choose one eligible candidate.',
         status: 'ACTIVE',
-        visibility: 'UNLISTED',
+        visibility: options.campaignVisibility ?? 'UNLISTED',
+        timezone: 'Africa/Lome',
+        locale: 'en',
         votingMode: 'FREE',
         votesPerVoter: 1,
+        allowMultipleCandidates: false,
         requiresEmailVerification: true,
         startsAt: new Date('2026-07-23T10:00:00.000Z'),
         endsAt: new Date('2026-07-23T14:00:00.000Z'),
@@ -140,8 +178,28 @@ function dependencies() {
         id: input.candidateId,
         organizationId,
         campaignId,
+        displayName: 'Candidate One',
+        slug: 'candidate-one',
+        shortDescription: 'Candidate summary',
+        imageAssetId: null,
+        position: 1,
         status: 'ELIGIBLE',
       };
+    },
+    async listEligibleCandidates() {
+      return [
+        {
+          id: candidateId,
+          organizationId,
+          campaignId,
+          displayName: 'Candidate One',
+          slug: 'candidate-one',
+          shortDescription: 'Candidate summary',
+          imageAssetId: null,
+          position: 1,
+          status: 'ELIGIBLE',
+        },
+      ];
     },
   };
   let idIndex = 0;

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { VotingDomainError } from './domain-error.js';
 import { VoteAttempt } from './vote-attempt.js';
-import { assertVotingEligibility } from './voting-policy.js';
+import { assertVotingCampaignAccess, assertVotingEligibility } from './voting-policy.js';
 
 const now = new Date('2026-07-23T12:00:00.000Z');
 const metadata = {
@@ -64,6 +64,17 @@ describe('Voting eligibility policy', () => {
 
   it('accepts a free vote satisfying campaign rules', () => {
     expect(() => assertVotingEligibility(eligible)).not.toThrow();
+  });
+
+  it('allows an eligible identity to read the ballot without candidate state', () => {
+    const {
+      candidateStatus: _candidateStatus,
+      confirmedVoteCount: _count,
+      votesPerVoter: _quota,
+      ...campaign
+    } = eligible;
+
+    expect(() => assertVotingCampaignAccess(campaign)).not.toThrow();
   });
 
   it.each([

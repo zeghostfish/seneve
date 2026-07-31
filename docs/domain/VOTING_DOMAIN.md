@@ -35,6 +35,17 @@ conflict.
 `allowMultipleCandidates` belongs to a future multi-selection Ballot contract. The current endpoint
 submits one Candidate per request and does not invent Ballot semantics from that flag.
 
+## Ballot Projection
+
+The authenticated ballot is a safe read projection of an active Campaign and its `ELIGIBLE`
+Candidates. It exposes presentation fields, Campaign voting rules and the authenticated identity's
+remaining quota. It does not contain vote totals, ranks, voter identifiers, idempotency keys or
+internal lifecycle data.
+
+Opening a ballot applies the same identity, email-verification, Campaign visibility, free-mode and
+schedule checks that protect submission. Candidate eligibility and quota are re-evaluated
+transactionally when a vote is submitted.
+
 ## Events
 
 - `VoteAttemptCreated`

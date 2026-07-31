@@ -136,3 +136,44 @@ export interface CandidateSummary {
   readonly archivedAt: string | null;
   readonly version: number;
 }
+
+export interface VotingBallot {
+  readonly campaign: {
+    readonly id: string;
+    readonly organizationId: string;
+    readonly name: string;
+    readonly description: string | null;
+    readonly visibility: 'UNLISTED' | 'PUBLIC';
+    readonly timezone: string;
+    readonly locale: string;
+    readonly startsAt: string;
+    readonly endsAt: string;
+    readonly votesPerVoter: number;
+    readonly allowMultipleCandidates: boolean;
+  };
+  readonly candidates: readonly VotingBallotCandidate[];
+  readonly confirmedVoteCount: number;
+  readonly remainingVotes: number;
+}
+
+export interface VotingBallotCandidate {
+  readonly id: string;
+  readonly displayName: string;
+  readonly slug: string;
+  readonly shortDescription: string | null;
+  readonly imageAssetId: string | null;
+  readonly position: number;
+}
+
+export interface VotingReceipt {
+  readonly id: string;
+  readonly organizationId: string;
+  readonly campaignId: string;
+  readonly candidateId: string;
+  readonly status: 'PENDING' | 'CONFIRMED' | 'REJECTED';
+  readonly rejectionCode: string | null;
+  readonly createdAt: string;
+  readonly confirmedAt: string | null;
+  readonly rejectedAt: string | null;
+  readonly version: number;
+}

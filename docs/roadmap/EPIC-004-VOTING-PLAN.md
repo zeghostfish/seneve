@@ -2,7 +2,7 @@
 
 ## Phase 20: Authenticated Free Voting Foundation
 
-Status: implemented locally; PostgreSQL runtime validation pending.
+Status: merged; CI validation passed.
 
 Delivered:
 
@@ -14,13 +14,28 @@ Delivered:
 - authenticated submit and own-vote HTTP contracts;
 - domain, application, HTTP and PostgreSQL-gated tests.
 
+## Phase 21: Authenticated Ballot Experience
+
+Status: implemented on `codex/voting-public-flow`; validation pending.
+
+Delivered:
+
+- authenticated ballot read contract for active `PUBLIC` and `UNLISTED` free Campaigns;
+- tenant-scoped Campaign and eligible-Candidate projection;
+- remaining-vote calculation based on confirmed vote facts;
+- responsive ballot page using the existing in-memory access token and idempotent submission API;
+- administrative Campaign link to the ballot when the Campaign is active and non-private;
+- domain, application, persistence, HTTP and frontend API tests.
+
+The ballot is a read projection and submission experience, not a new mutable aggregate. The
+`VoteAttempt` aggregate remains the authoritative vote fact.
+
 Deferred:
 
-- Ballot and multi-candidate submission;
-- anonymous/public voting UX;
+- anonymous admission and public voting without an authenticated Seneve identity;
+- multi-candidate submission;
 - paid and hybrid voting execution;
 - Payment, SMS, Fraud and verification-provider integrations;
 - vote totals, rankings and public results.
 
-PostgreSQL migration, RLS and concurrency validation is required before paid voting or result
-projections begin.
+No public results or vote-count projection is exposed by the ballot endpoint.
