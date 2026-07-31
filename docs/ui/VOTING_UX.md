@@ -6,6 +6,11 @@ The initial Seneve ballot requires an authenticated identity and supports free v
 shows eligible Candidates, remaining quota and explicit confirmation feedback without exposing
 totals or rankings.
 
+When `allowMultipleCandidates` is enabled, the ballot presents keyboard-accessible checkboxes and
+limits the current selection to the remaining quota. Confirmation submits all selected Candidates
+atomically. Otherwise, radio controls preserve single-Candidate selection and backend rules prevent
+later votes from switching Candidates.
+
 ## Voting Receipts
 
 `/vote/:organizationId/history` provides a responsive, keyboard-accessible list of the identity's
@@ -24,5 +29,5 @@ authorization.
 
 ## Deferred
 
-Anonymous ballots, public Campaign discovery, multi-selection submission, Payment, SMS, fraud
-controls, results and rankings remain deferred.
+Anonymous ballots, public Campaign discovery, Payment, SMS, fraud controls, results and rankings
+remain deferred.

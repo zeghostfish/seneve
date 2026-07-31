@@ -64,6 +64,11 @@ export interface VoteAttemptRepository {
     readonly campaignId: string;
     readonly voterIdentityId: string;
   }): Promise<number>;
+  listConfirmedCandidateIds(input: {
+    readonly organizationId: string;
+    readonly campaignId: string;
+    readonly voterIdentityId: string;
+  }): Promise<readonly string[]>;
   create(attempt: VoteAttemptSnapshot): Promise<void>;
   findOwnedById(input: {
     readonly organizationId: string;

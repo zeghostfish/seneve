@@ -28,6 +28,32 @@ free voting. Candidate eligibility and quota are checked again during submission
 `requestId` is a client-generated idempotency UUID. The response contains `replayed: true` for a
 successful replay and excludes voter identity and request identifiers.
 
+## Submit Atomic Ballot
+
+`POST /voting/organizations/:organizationId/campaigns/:campaignId/ballots`
+
+```json
+{
+  "selections": [
+    {
+      "candidateId": "44444444-4444-4444-8444-444444444444",
+      "requestId": "77777777-7777-4777-8777-777777777777"
+    },
+    {
+      "candidateId": "99999999-9999-4999-8999-999999999999",
+      "requestId": "88888888-8888-4888-8888-888888888888"
+    }
+  ]
+}
+```
+
+Candidates and request identifiers must be unique inside the Ballot. Each request identifier is the
+idempotency key for its selection. All new selections are confirmed atomically, and an exact replay
+returns the existing votes with `replayed: true`.
+
+The Campaign quota applies to the combined confirmed count and new selections. Multiple distinct
+Candidates are accepted only when `allowMultipleCandidates` is enabled.
+
 ## Read Own Vote
 
 `GET /voting/organizations/:organizationId/votes/:voteAttemptId`
@@ -61,6 +87,10 @@ grants access to a receipt outside the authenticated voter and Organization cont
 - `VOTING_CANDIDATE_NOT_ELIGIBLE`
 - `VOTING_PAYMENT_REQUIRED`
 - `VOTING_QUOTA_REACHED`
+- `VOTING_BALLOT_EMPTY`
+- `VOTING_BALLOT_DUPLICATE_CANDIDATE`
+- `VOTING_BALLOT_DUPLICATE_REQUEST`
+- `VOTING_MULTIPLE_CANDIDATES_NOT_ALLOWED`
 
 Database errors, policy details and cross-tenant existence are never exposed.
 
@@ -69,7 +99,8 @@ Database errors, policy details and cross-tenant existence are never exposed.
 `/vote/:organizationId/:campaignId`
 
 The route requires the existing Seneve authentication session. It uses the ballot endpoint and
-submits a client-generated UUID through the free-vote endpoint. Anonymous voting is not supported.
+submits one selection through the free-vote endpoint or multiple selections through the atomic
+Ballot endpoint, according to Campaign configuration. Anonymous voting is not supported.
 
 `/vote/:organizationId/history` lists the signed-in identity's confirmed voting receipts for the
 Organization.

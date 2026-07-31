@@ -1,6 +1,17 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsInt, IsOptional, IsUUID, Max, Min } from 'class-validator';
+import {
+  ArrayMaxSize,
+  ArrayMinSize,
+  ArrayUnique,
+  IsArray,
+  IsInt,
+  IsOptional,
+  IsUUID,
+  Max,
+  Min,
+  ValidateNested,
+} from 'class-validator';
 
 export class VotingOrganizationParamDto {
   @ApiProperty()
@@ -28,6 +39,20 @@ export class SubmitFreeVoteDto {
   @ApiProperty({ description: 'Client-generated idempotency identifier.' })
   @IsUUID()
   requestId!: string;
+}
+
+export class SubmitBallotSelectionDto extends SubmitFreeVoteDto {}
+
+export class SubmitFreeBallotDto {
+  @ApiProperty({ type: [SubmitBallotSelectionDto], minItems: 1, maxItems: 100 })
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(100)
+  @ArrayUnique((selection: SubmitBallotSelectionDto) => selection.candidateId)
+  @ArrayUnique((selection: SubmitBallotSelectionDto) => selection.requestId)
+  @ValidateNested({ each: true })
+  @Type(() => SubmitBallotSelectionDto)
+  selections!: SubmitBallotSelectionDto[];
 }
 
 export class VotingHistoryQueryDto {

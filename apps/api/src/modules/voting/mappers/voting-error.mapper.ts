@@ -28,6 +28,10 @@ function statusFor(code: VotingApplicationError['code']): HttpStatus {
     case 'VOTING_CAMPAIGN_PRIVATE':
     case 'VOTING_CAMPAIGN_OUTSIDE_WINDOW':
     case 'VOTING_CANDIDATE_NOT_ELIGIBLE':
+    case 'VOTING_BALLOT_EMPTY':
+    case 'VOTING_BALLOT_DUPLICATE_CANDIDATE':
+    case 'VOTING_BALLOT_DUPLICATE_REQUEST':
+    case 'VOTING_MULTIPLE_CANDIDATES_NOT_ALLOWED':
       return HttpStatus.CONFLICT;
     case 'VOTING_PAYMENT_REQUIRED':
       return HttpStatus.PAYMENT_REQUIRED;

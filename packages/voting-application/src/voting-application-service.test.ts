@@ -125,6 +125,77 @@ describe('VotingApplicationService', () => {
       nextCursor: null,
     });
   });
+
+  it('confirms a multi-candidate ballot atomically and replays it idempotently', async () => {
+    const deps = dependencies({ allowMultipleCandidates: true, votesPerVoter: 3 });
+    const service = new VotingApplicationService(deps);
+    const ballot = {
+      voterIdentityId,
+      organizationId,
+      campaignId,
+      selections: [
+        { candidateId, requestId },
+        {
+          candidateId: '99999999-9999-4999-8999-999999999999',
+          requestId: '88888888-8888-4888-8888-888888888888',
+        },
+      ],
+      correlationId: 'corr-multi-ballot',
+    };
+
+    const first = await service.submitFreeBallot(ballot);
+    const replay = await service.submitFreeBallot(ballot);
+
+    expect(first).toMatchObject({
+      replayed: false,
+      votes: [
+        { candidateId, status: 'CONFIRMED' },
+        { candidateId: '99999999-9999-4999-8999-999999999999', status: 'CONFIRMED' },
+      ],
+    });
+    expect(replay).toMatchObject({ replayed: true, votes: first.votes });
+    expect(deps.votes.size).toBe(2);
+    expect(deps.recordedEvents).toHaveLength(4);
+  });
+
+  it('rejects multiple candidates when campaign rules require one candidate', async () => {
+    const deps = dependencies({ allowMultipleCandidates: false, votesPerVoter: 3 });
+    const service = new VotingApplicationService(deps);
+
+    await expect(
+      service.submitFreeBallot({
+        voterIdentityId,
+        organizationId,
+        campaignId,
+        selections: [
+          { candidateId, requestId },
+          {
+            candidateId: '99999999-9999-4999-8999-999999999999',
+            requestId: '88888888-8888-4888-8888-888888888888',
+          },
+        ],
+        correlationId: 'corr-single-candidate-ballot',
+      }),
+    ).rejects.toThrowError(
+      expect.objectContaining({ code: 'VOTING_MULTIPLE_CANDIDATES_NOT_ALLOWED' }),
+    );
+  });
+
+  it('prevents later votes from switching candidates when multiple candidates are disabled', async () => {
+    const deps = dependencies({ allowMultipleCandidates: false, votesPerVoter: 3 });
+    const service = new VotingApplicationService(deps);
+    await service.submitFreeVote(command());
+
+    await expect(
+      service.submitFreeVote({
+        ...command(),
+        candidateId: '99999999-9999-4999-8999-999999999999',
+        requestId: '88888888-8888-4888-8888-888888888888',
+      }),
+    ).rejects.toThrowError(
+      expect.objectContaining({ code: 'VOTING_MULTIPLE_CANDIDATES_NOT_ALLOWED' }),
+    );
+  });
 });
 
 function command() {
@@ -138,7 +209,13 @@ function command() {
   };
 }
 
-function dependencies(options: { campaignVisibility?: string } = {}) {
+function dependencies(
+  options: {
+    campaignVisibility?: string;
+    allowMultipleCandidates?: boolean;
+    votesPerVoter?: number;
+  } = {},
+) {
   const votes = new Map<string, VoteAttemptSnapshot>();
   const recordedEvents: string[] = [];
   const repositories: VotingRepositories = {
@@ -168,6 +245,21 @@ function dependencies(options: { campaignVisibility?: string } = {}) {
             vote.voterIdentityId === input.voterIdentityId &&
             vote.status === 'CONFIRMED',
         ).length;
+      },
+      async listConfirmedCandidateIds(input) {
+        return [
+          ...new Set(
+            [...votes.values()]
+              .filter(
+                (vote) =>
+                  vote.organizationId === input.organizationId &&
+                  vote.campaignId === input.campaignId &&
+                  vote.voterIdentityId === input.voterIdentityId &&
+                  vote.status === 'CONFIRMED',
+              )
+              .map((vote) => vote.candidateId),
+          ),
+        ];
       },
       async create(vote) {
         votes.set(vote.id, vote);
@@ -213,8 +305,8 @@ function dependencies(options: { campaignVisibility?: string } = {}) {
         timezone: 'Africa/Lome',
         locale: 'en',
         votingMode: 'FREE',
-        votesPerVoter: 1,
-        allowMultipleCandidates: false,
+        votesPerVoter: options.votesPerVoter ?? 1,
+        allowMultipleCandidates: options.allowMultipleCandidates ?? false,
         requiresEmailVerification: true,
         startsAt: new Date('2026-07-23T10:00:00.000Z'),
         endsAt: new Date('2026-07-23T14:00:00.000Z'),
@@ -255,6 +347,11 @@ function dependencies(options: { campaignVisibility?: string } = {}) {
     '66666666-6666-4666-8666-666666666661',
     '66666666-6666-4666-8666-666666666662',
     '11111111-1111-4111-8111-111111111112',
+    '66666666-6666-4666-8666-666666666663',
+    '66666666-6666-4666-8666-666666666664',
+    '11111111-1111-4111-8111-111111111113',
+    '66666666-6666-4666-8666-666666666665',
+    '66666666-6666-4666-8666-666666666666',
   ];
   const deps = {
     unitOfWork: {

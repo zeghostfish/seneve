@@ -45,6 +45,19 @@ export class PrismaVoteAttemptRepository implements VoteAttemptRepository {
     return this.prisma.voteAttempt.count({ where: { ...input, status: 'CONFIRMED' } });
   }
 
+  async listConfirmedCandidateIds(input: {
+    readonly organizationId: string;
+    readonly campaignId: string;
+    readonly voterIdentityId: string;
+  }): Promise<readonly string[]> {
+    const records = await this.prisma.voteAttempt.findMany({
+      where: { ...input, status: 'CONFIRMED' },
+      distinct: ['candidateId'],
+      select: { candidateId: true },
+    });
+    return records.map((record) => record.candidateId);
+  }
+
   async create(attempt: VoteAttemptSnapshot): Promise<void> {
     await this.prisma.voteAttempt.create({ data: attempt });
   }

@@ -1,6 +1,9 @@
 import {
   VotingDomainError,
   VoteAttempt,
+  type VoteAttemptSnapshot,
+  assertVotingBallotAllocation,
+  assertVotingBallotRequest,
   assertVotingCampaignAccess,
   assertVotingEligibility,
 } from '@seneve/domain-voting';
@@ -8,6 +11,8 @@ import { authenticatedVotingTenantContext } from '@seneve/tenant-context';
 
 import { VotingApplicationError } from './application-error.js';
 import type {
+  BallotCommandResult,
+  SubmitBallotCommand,
   SubmitVoteCommand,
   VoteCommandResult,
   VotingBallotResult,
@@ -69,6 +74,30 @@ export class VotingApplicationService {
   }
 
   async submitFreeVote(command: SubmitVoteCommand): Promise<VoteCommandResult> {
+    const result = await this.submitFreeBallot({
+      voterIdentityId: command.voterIdentityId,
+      organizationId: command.organizationId,
+      campaignId: command.campaignId,
+      selections: [{ candidateId: command.candidateId, requestId: command.requestId }],
+      correlationId: command.correlationId,
+    });
+    const vote = result.votes[0];
+    if (!vote) {
+      throw new VotingApplicationError(
+        'VOTING_TRANSACTION_FAILED',
+        'The vote transaction returned no vote.',
+      );
+    }
+    return { vote, replayed: result.replayed };
+  }
+
+  async submitFreeBallot(command: SubmitBallotCommand): Promise<BallotCommandResult> {
+    translateDomainErrors(() =>
+      assertVotingBallotRequest({
+        candidateIds: command.selections.map((selection) => selection.candidateId),
+        requestIds: command.selections.map((selection) => selection.requestId),
+      }),
+    );
     const identity = await this.requireIdentity(command.voterIdentityId);
 
     const context = authenticatedVotingTenantContext({
@@ -81,30 +110,36 @@ export class VotingApplicationService {
     return this.deps.executionContext.run(context, () =>
       this.deps.unitOfWork.transaction(async (repositories) => {
         await repositories.votes.lockVoter(command);
-        const previous = await repositories.votes.findByRequest(command);
-        if (previous) {
-          if (previous.candidateId !== command.candidateId) {
+        const previous = await Promise.all(
+          command.selections.map((selection) =>
+            repositories.votes.findByRequest({ ...command, requestId: selection.requestId }),
+          ),
+        );
+        for (const [index, vote] of previous.entries()) {
+          if (vote && vote.candidateId !== command.selections[index]?.candidateId) {
             throw new VotingApplicationError(
               'VOTE_REQUEST_CONFLICT',
               'The vote request identifier is already used for another candidate.',
             );
           }
-          return { vote: previous, replayed: true };
         }
+        if (previous.every(Boolean)) {
+          return { votes: previous as VoteAttemptSnapshot[], replayed: true };
+        }
+
+        const pendingSelections = command.selections.filter((_, index) => !previous[index]);
 
         const campaign = await repositories.findCampaign(command);
         if (!campaign) {
           throw new VotingApplicationError('VOTING_CAMPAIGN_NOT_FOUND', 'Campaign not found.');
         }
-        const candidate = await repositories.findCandidate(command);
-        if (!candidate) {
-          throw new VotingApplicationError('VOTING_CANDIDATE_NOT_FOUND', 'Candidate not found.');
-        }
-
-        const confirmedVoteCount = await repositories.votes.countConfirmed(command);
+        const [confirmedVoteCount, existingCandidateIds] = await Promise.all([
+          repositories.votes.countConfirmed(command),
+          repositories.votes.listConfirmedCandidateIds(command),
+        ]);
         const now = this.deps.clock.now();
         translateDomainErrors(() =>
-          assertVotingEligibility({
+          assertVotingCampaignAccess({
             identityStatus: identity.status,
             emailVerified: Boolean(identity.primaryEmail.verifiedAt),
             campaignStatus: campaign.status,
@@ -113,10 +148,17 @@ export class VotingApplicationService {
             requiresEmailVerification: campaign.requiresEmailVerification,
             startsAt: campaign.startsAt,
             endsAt: campaign.endsAt,
-            candidateStatus: candidate.status,
+            now,
+          }),
+        );
+        translateDomainErrors(() =>
+          assertVotingBallotAllocation({
+            candidateIds: pendingSelections.map((selection) => selection.candidateId),
+            requestIds: pendingSelections.map((selection) => selection.requestId),
+            existingCandidateIds,
             confirmedVoteCount,
             votesPerVoter: campaign.votesPerVoter,
-            now,
+            allowMultipleCandidates: campaign.allowMultipleCandidates,
           }),
         );
 
@@ -126,30 +168,71 @@ export class VotingApplicationService {
           actorIdentityId: command.voterIdentityId,
           occurredAt: now,
         });
-        const pending = translateDomainErrors(() =>
-          VoteAttempt.create({
-            id: this.deps.ids.uuid(),
-            organizationId: command.organizationId,
-            campaignId: command.campaignId,
-            candidateId: command.candidateId,
-            voterIdentityId: command.voterIdentityId,
-            requestId: command.requestId,
-            createdAt: now,
-            metadata: eventMetadata(),
-          }),
-        );
-        const createdEvents = pending.pullDomainEvents();
-        const confirmed = translateDomainErrors(() =>
-          pending.confirm({ confirmedAt: now, metadata: eventMetadata() }),
-        );
-        const confirmedEvents = confirmed.pullDomainEvents();
+        const createdVotes = new Map<string, VoteAttemptSnapshot>();
+        for (const selection of pendingSelections) {
+          const candidate = await repositories.findCandidate({
+            ...command,
+            candidateId: selection.candidateId,
+          });
+          if (!candidate) {
+            throw new VotingApplicationError('VOTING_CANDIDATE_NOT_FOUND', 'Candidate not found.');
+          }
+          translateDomainErrors(() =>
+            assertVotingEligibility({
+              identityStatus: identity.status,
+              emailVerified: Boolean(identity.primaryEmail.verifiedAt),
+              campaignStatus: campaign.status,
+              campaignVisibility: campaign.visibility,
+              votingMode: campaign.votingMode,
+              requiresEmailVerification: campaign.requiresEmailVerification,
+              startsAt: campaign.startsAt,
+              endsAt: campaign.endsAt,
+              candidateStatus: candidate.status,
+              confirmedVoteCount,
+              votesPerVoter: campaign.votesPerVoter,
+              now,
+            }),
+          );
 
-        await repositories.votes.create(confirmed.toSnapshot());
-        for (const event of [...createdEvents, ...confirmedEvents]) {
-          await repositories.auditEvents.record(event);
+          const pending = translateDomainErrors(() =>
+            VoteAttempt.create({
+              id: this.deps.ids.uuid(),
+              organizationId: command.organizationId,
+              campaignId: command.campaignId,
+              candidateId: selection.candidateId,
+              voterIdentityId: command.voterIdentityId,
+              requestId: selection.requestId,
+              createdAt: now,
+              metadata: eventMetadata(),
+            }),
+          );
+          const createdEvents = pending.pullDomainEvents();
+          const confirmed = translateDomainErrors(() =>
+            pending.confirm({ confirmedAt: now, metadata: eventMetadata() }),
+          );
+          const confirmedEvents = confirmed.pullDomainEvents();
+          const snapshot = confirmed.toSnapshot();
+
+          await repositories.votes.create(snapshot);
+          for (const event of [...createdEvents, ...confirmedEvents]) {
+            await repositories.auditEvents.record(event);
+          }
+          createdVotes.set(selection.requestId, snapshot);
         }
 
-        return { vote: confirmed.toSnapshot(), replayed: false };
+        return {
+          votes: command.selections.map((selection, index) => {
+            const vote = previous[index] ?? createdVotes.get(selection.requestId);
+            if (!vote) {
+              throw new VotingApplicationError(
+                'VOTING_TRANSACTION_FAILED',
+                'The ballot transaction returned an incomplete result.',
+              );
+            }
+            return vote;
+          }),
+          replayed: false,
+        };
       }),
     );
   }

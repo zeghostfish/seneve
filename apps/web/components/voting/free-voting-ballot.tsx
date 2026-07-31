@@ -14,11 +14,11 @@ export function FreeVotingBallot({
 }: Readonly<{ organizationId: string; campaignId: string }>) {
   const { accessToken, status } = useAuth();
   const [ballot, setBallot] = React.useState<VotingBallot | null>(null);
-  const [candidateId, setCandidateId] = React.useState('');
+  const [candidateIds, setCandidateIds] = React.useState<readonly string[]>([]);
   const [message, setMessage] = React.useState<string | null>(null);
-  const [confirmed, setConfirmed] = React.useState(false);
+  const [confirmedCount, setConfirmedCount] = React.useState(0);
   const [loading, setLoading] = React.useState(false);
-  const requestId = React.useRef<string | null>(null);
+  const requestIds = React.useRef(new Map<string, string>());
 
   const load = React.useCallback(async () => {
     if (!accessToken) {
@@ -43,26 +43,38 @@ export function FreeVotingBallot({
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!accessToken || !candidateId) {
-      setMessage('Select a candidate before confirming your vote.');
+    if (!accessToken || candidateIds.length === 0) {
+      setMessage('Select at least one candidate before confirming your ballot.');
       return;
     }
 
     setLoading(true);
     setMessage(null);
-    requestId.current ??= crypto.randomUUID();
+    const selections = candidateIds.map((candidateId) => {
+      const requestId = requestIds.current.get(candidateId) ?? crypto.randomUUID();
+      requestIds.current.set(candidateId, requestId);
+      return { candidateId, requestId };
+    });
 
     try {
-      await votingApi.submitFreeVote(
-        accessToken,
-        organizationId,
-        campaignId,
-        candidateId,
-        requestId.current,
-      );
-      requestId.current = null;
-      setCandidateId('');
-      setConfirmed(true);
+      if (ballot?.campaign.allowMultipleCandidates) {
+        await votingApi.submitFreeBallot(accessToken, organizationId, campaignId, selections);
+      } else {
+        const selection = selections[0];
+        if (!selection) {
+          return;
+        }
+        await votingApi.submitFreeVote(
+          accessToken,
+          organizationId,
+          campaignId,
+          selection.candidateId,
+          selection.requestId,
+        );
+      }
+      requestIds.current.clear();
+      setCandidateIds([]);
+      setConfirmedCount(selections.length);
       await load();
     } catch (caught) {
       setMessage(caught instanceof Error ? caught.message : 'The vote could not be confirmed.');
@@ -120,13 +132,21 @@ export function FreeVotingBallot({
         </p>
       </header>
 
-      {confirmed ? (
-        <StatusMessage tone="success">Your vote was confirmed and recorded.</StatusMessage>
+      {confirmedCount > 0 ? (
+        <StatusMessage tone="success">
+          {confirmedCount === 1
+            ? 'Your vote was confirmed and recorded.'
+            : `${confirmedCount} votes were confirmed and recorded atomically.`}
+        </StatusMessage>
       ) : null}
       {message ? <StatusMessage tone="warning">{message}</StatusMessage> : null}
 
       <fieldset className="grid gap-3">
-        <legend className="mb-2 text-lg font-semibold text-slate-950">Choose a candidate</legend>
+        <legend className="mb-2 text-lg font-semibold text-slate-950">
+          {ballot.campaign.allowMultipleCandidates
+            ? `Choose up to ${ballot.remainingVotes} candidates`
+            : 'Choose a candidate'}
+        </legend>
         {ballot.candidates.length === 0 ? (
           <StatusMessage>No eligible candidates are available.</StatusMessage>
         ) : null}
@@ -134,20 +154,30 @@ export function FreeVotingBallot({
           <label
             key={candidate.id}
             className={`grid cursor-pointer grid-cols-[auto_1fr] gap-3 rounded-md border p-4 transition ${
-              candidateId === candidate.id
+              candidateIds.includes(candidate.id)
                 ? 'border-[#b20000] bg-red-50'
                 : 'border-slate-200 bg-white hover:border-slate-400'
             }`}
           >
             <input
-              type="radio"
+              type={ballot.campaign.allowMultipleCandidates ? 'checkbox' : 'radio'}
               name="candidate"
               value={candidate.id}
-              checked={candidateId === candidate.id}
+              checked={candidateIds.includes(candidate.id)}
+              disabled={
+                ballot.campaign.allowMultipleCandidates &&
+                !candidateIds.includes(candidate.id) &&
+                candidateIds.length >= ballot.remainingVotes
+              }
               onChange={() => {
-                setCandidateId(candidate.id);
-                setConfirmed(false);
-                requestId.current = null;
+                setCandidateIds((current) =>
+                  ballot.campaign.allowMultipleCandidates
+                    ? current.includes(candidate.id)
+                      ? current.filter((id) => id !== candidate.id)
+                      : [...current, candidate.id]
+                    : [candidate.id],
+                );
+                setConfirmedCount(0);
               }}
               className="mt-1 h-4 w-4 accent-[#b20000]"
             />
@@ -165,10 +195,14 @@ export function FreeVotingBallot({
 
       <button
         type="submit"
-        disabled={loading || !candidateId || ballot.remainingVotes === 0}
+        disabled={loading || candidateIds.length === 0 || ballot.remainingVotes === 0}
         className="h-11 w-full rounded-md bg-slate-950 px-4 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
       >
-        {loading ? 'Confirming...' : 'Confirm vote'}
+        {loading
+          ? 'Confirming...'
+          : ballot.campaign.allowMultipleCandidates
+            ? 'Confirm ballot'
+            : 'Confirm vote'}
       </button>
     </form>
   );

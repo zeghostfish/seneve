@@ -140,6 +140,50 @@ describe('VotingController', () => {
     });
     expect(response.receipts[0]).not.toHaveProperty('voterIdentityId');
   });
+
+  it('maps an atomic multi-candidate ballot without request identifiers', async () => {
+    const secondCandidateId = '99999999-9999-4999-8999-999999999999';
+    const controller = new VotingController({
+      async submitFreeBallot() {
+        return {
+          votes: [
+            vote(),
+            {
+              ...vote(),
+              id: '11111111-1111-4111-8111-111111111112',
+              candidateId: secondCandidateId,
+              requestId: '88888888-8888-4888-8888-888888888888',
+            },
+          ],
+          replayed: false,
+        };
+      },
+    } as never);
+
+    const response = await controller.submitBallot(
+      { organizationId, campaignId },
+      {
+        selections: [
+          { candidateId, requestId },
+          {
+            candidateId: secondCandidateId,
+            requestId: '88888888-8888-4888-8888-888888888888',
+          },
+        ],
+      },
+      request(),
+    );
+
+    expect(response).toMatchObject({
+      votes: [
+        { candidateId, status: 'CONFIRMED' },
+        { candidateId: secondCandidateId, status: 'CONFIRMED' },
+      ],
+      replayed: false,
+    });
+    expect(response.votes[0]).not.toHaveProperty('requestId');
+    expect(response.votes[0]).not.toHaveProperty('voterIdentityId');
+  });
 });
 
 function request(): AuthenticatedHttpRequest {

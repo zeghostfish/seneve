@@ -2,7 +2,11 @@ import { describe, expect, it } from 'vitest';
 
 import { VotingDomainError } from './domain-error.js';
 import { VoteAttempt } from './vote-attempt.js';
-import { assertVotingCampaignAccess, assertVotingEligibility } from './voting-policy.js';
+import {
+  assertVotingBallotSelection,
+  assertVotingCampaignAccess,
+  assertVotingEligibility,
+} from './voting-policy.js';
 
 const now = new Date('2026-07-23T12:00:00.000Z');
 const metadata = {
@@ -88,6 +92,48 @@ describe('Voting eligibility policy', () => {
     ['VOTING_QUOTA_REACHED', { confirmedVoteCount: 1 }],
   ])('rejects %s', (code, change) => {
     expect(() => assertVotingEligibility({ ...eligible, ...change })).toThrowError(
+      expect.objectContaining({ code }),
+    );
+  });
+});
+
+describe('Voting ballot selection policy', () => {
+  const selection = {
+    candidateIds: ['44444444-4444-4444-8444-444444444444', '99999999-9999-4999-8999-999999999999'],
+    requestIds: ['77777777-7777-4777-8777-777777777777', '88888888-8888-4888-8888-888888888888'],
+    existingCandidateIds: [],
+    confirmedVoteCount: 0,
+    votesPerVoter: 3,
+    allowMultipleCandidates: true,
+  };
+
+  it('accepts distinct selections when the campaign allows multiple candidates', () => {
+    expect(() => assertVotingBallotSelection(selection)).not.toThrow();
+  });
+
+  it.each([
+    ['VOTING_BALLOT_EMPTY', { candidateIds: [], requestIds: [] }],
+    [
+      'VOTING_BALLOT_DUPLICATE_CANDIDATE',
+      { candidateIds: [selection.candidateIds[0], selection.candidateIds[0]] },
+    ],
+    [
+      'VOTING_BALLOT_DUPLICATE_REQUEST',
+      { requestIds: [selection.requestIds[0], selection.requestIds[0]] },
+    ],
+    ['VOTING_QUOTA_REACHED', { confirmedVoteCount: 2 }],
+    ['VOTING_MULTIPLE_CANDIDATES_NOT_ALLOWED', { allowMultipleCandidates: false }],
+    [
+      'VOTING_MULTIPLE_CANDIDATES_NOT_ALLOWED',
+      {
+        allowMultipleCandidates: false,
+        candidateIds: [selection.candidateIds[1]],
+        requestIds: [selection.requestIds[1]],
+        existingCandidateIds: [selection.candidateIds[0]],
+      },
+    ],
+  ])('rejects %s', (code, change) => {
+    expect(() => assertVotingBallotSelection({ ...selection, ...change })).toThrowError(
       expect.objectContaining({ code }),
     );
   });

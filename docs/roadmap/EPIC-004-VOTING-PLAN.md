@@ -16,7 +16,7 @@ Delivered:
 
 ## Phase 21: Authenticated Ballot Experience
 
-Status: implemented on `codex/voting-public-flow`; validation pending.
+Status: merged; CI validation passed.
 
 Delivered:
 
@@ -33,9 +33,28 @@ The ballot is a read projection and submission experience, not a new mutable agg
 Deferred:
 
 - anonymous admission and public voting without an authenticated Seneve identity;
-- multi-candidate submission;
 - paid and hybrid voting execution;
 - Payment, SMS, Fraud and verification-provider integrations;
 - vote totals, rankings and public results.
 
 No public results or vote-count projection is exposed by the ballot endpoint.
+
+## Phase 22: Atomic Multi-Candidate Ballots
+
+Status: implemented on `codex/voting-multiselection`; validation pending.
+
+Delivered:
+
+- atomic multi-Candidate submission for authenticated free Campaigns;
+- per-selection UUID idempotency without a second mutable aggregate;
+- Campaign-wide enforcement of `allowMultipleCandidates`;
+- combined quota validation and duplicate-selection rejection;
+- checkbox-based responsive Ballot interaction;
+- domain, application, persistence, HTTP and frontend API tests.
+
+Deferred:
+
+- anonymous admission and public voting without an authenticated Seneve identity;
+- paid and hybrid voting execution;
+- Payment, SMS, Fraud and verification-provider integrations;
+- vote totals, rankings and public results.

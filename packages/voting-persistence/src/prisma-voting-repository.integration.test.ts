@@ -52,6 +52,13 @@ describePostgres('Prisma voting persistence and RLS', () => {
         await expect(
           votes.countConfirmed({ organizationId, campaignId, voterIdentityId: voterA }),
         ).resolves.toBe(1);
+        await expect(
+          votes.listConfirmedCandidateIds({
+            organizationId,
+            campaignId,
+            voterIdentityId: voterA,
+          }),
+        ).resolves.toEqual([candidateId]);
       }),
     );
   });
@@ -152,6 +159,32 @@ describePostgres('Prisma voting persistence and RLS', () => {
       }),
     ).rejects.toThrow();
   });
+
+  it('rolls back every selection when an atomic ballot transaction fails', async () => {
+    await expect(
+      execution.run(voterContext(voterA), () =>
+        unitOfWork.transaction(async ({ votes }) => {
+          await votes.create(attempt());
+          await votes.create(
+            attempt({
+              id: '11111111-1111-4111-8111-111111111112',
+              candidateId: '44444444-4444-4444-8444-444444444445',
+              requestId: '88888888-8888-4888-8888-888888888889',
+            }),
+          );
+          throw new Error('simulated ballot failure');
+        }),
+      ),
+    ).rejects.toThrow('simulated ballot failure');
+
+    await execution.run(voterContext(voterA), () =>
+      unitOfWork.transaction(async ({ votes }) => {
+        await expect(
+          votes.countConfirmed({ organizationId, campaignId, voterIdentityId: voterA }),
+        ).resolves.toBe(0);
+      }),
+    );
+  });
 });
 
 function voterContext(identityId: string) {
@@ -163,14 +196,20 @@ function voterContext(identityId: string) {
   });
 }
 
-function attempt() {
+function attempt(
+  overrides: Partial<{
+    id: string;
+    candidateId: string;
+    requestId: string;
+  }> = {},
+) {
   return {
-    id: '11111111-1111-4111-8111-111111111111',
+    id: overrides.id ?? '11111111-1111-4111-8111-111111111111',
     organizationId,
     campaignId,
-    candidateId,
+    candidateId: overrides.candidateId ?? candidateId,
     voterIdentityId: voterA,
-    requestId: '88888888-8888-4888-8888-888888888888',
+    requestId: overrides.requestId ?? '88888888-8888-4888-8888-888888888888',
     status: 'CONFIRMED' as const,
     rejectionCode: null,
     createdAt: now,
@@ -260,6 +299,18 @@ async function seed(): Promise<void> {
             slug: 'eligible-candidate',
             status: 'ELIGIBLE',
             position: 1,
+            createdBy: voterA,
+          },
+        });
+        await tx.candidate.create({
+          data: {
+            id: '44444444-4444-4444-8444-444444444445',
+            organizationId,
+            campaignId,
+            displayName: 'Second eligible candidate',
+            slug: 'second-eligible-candidate',
+            status: 'ELIGIBLE',
+            position: 2,
             createdBy: voterA,
           },
         });

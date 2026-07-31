@@ -13,6 +13,12 @@ Campaign plus eligible Candidate presentation fields. The web application keeps 
 the existing authentication provider, generates a UUID idempotency key per submission attempt and
 refetches the authoritative ballot after confirmation.
 
+Multi-candidate submission is an application-level transaction over immutable `VoteAttempt`
+aggregates, not a second mutable aggregate. Each selection has its own idempotency UUID. The
+application locks the voter, resolves replays, verifies the Campaign allocation rule and quota,
+loads every Candidate in the tenant context, then persists all new attempts and audit events in one
+transaction.
+
 The receipt query uses the same voter-scoped tenant context. It joins only safe Campaign and
 Candidate presentation fields to the authenticated identity's confirmed attempts, applies bounded
 cursor pagination and never builds vote totals or result projections.
@@ -38,6 +44,5 @@ append therefore rolls back the confirmed vote, and a failed vote cannot leave a
 
 ## Deferred Stages
 
-Verification providers, Payment, Fraud, multi-selection Ballot composition, anonymous admission,
-result projections, public discovery and notifications remain outside this foundation. They must
-not mutate confirmed records.
+Verification providers, Payment, Fraud, anonymous admission, result projections, public discovery
+and notifications remain outside this foundation. They must not mutate confirmed records.

@@ -17,6 +17,7 @@ import type { AuthenticatedHttpRequest } from '../auth/auth-http.types.js';
 import { AccessTokenGuard } from '../auth/guards/access-token.guard.js';
 import { correlationIdFrom } from '../auth/providers/http-context.js';
 import {
+  SubmitFreeBallotDto,
   SubmitFreeVoteDto,
   VoteAttemptParamDto,
   VotingCampaignParamDto,
@@ -81,6 +82,33 @@ export class VotingController {
         correlationId,
       });
       return { vote: votingResponse(result.vote), replayed: result.replayed, correlationId };
+    } catch (error) {
+      throw mapVotingError(error, correlationId);
+    }
+  }
+
+  @Post('campaigns/:campaignId/ballots')
+  @ApiOperation({ summary: 'Submit an atomic authenticated free-voting ballot.' })
+  async submitBallot(
+    @Param() params: VotingCampaignParamDto,
+    @Body() body: SubmitFreeBallotDto,
+    @Req() request: AuthenticatedHttpRequest,
+  ) {
+    const correlationId = correlationIdFrom(request);
+    const identityId = requireIdentity(request, correlationId);
+    try {
+      const result = await this.voting.submitFreeBallot({
+        voterIdentityId: identityId,
+        organizationId: params.organizationId,
+        campaignId: params.campaignId,
+        selections: body.selections,
+        correlationId,
+      });
+      return {
+        votes: result.votes.map(votingResponse),
+        replayed: result.replayed,
+        correlationId,
+      };
     } catch (error) {
       throw mapVotingError(error, correlationId);
     }

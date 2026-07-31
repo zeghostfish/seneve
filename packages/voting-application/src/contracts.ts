@@ -25,8 +25,26 @@ export interface SubmitVoteCommand {
   readonly correlationId: string;
 }
 
+export interface SubmitBallotSelection {
+  readonly candidateId: string;
+  readonly requestId: string;
+}
+
+export interface SubmitBallotCommand {
+  readonly voterIdentityId: string;
+  readonly organizationId: string;
+  readonly campaignId: string;
+  readonly selections: readonly SubmitBallotSelection[];
+  readonly correlationId: string;
+}
+
 export interface VoteCommandResult {
   readonly vote: VoteAttemptSnapshot;
+  readonly replayed: boolean;
+}
+
+export interface BallotCommandResult {
+  readonly votes: readonly VoteAttemptSnapshot[];
   readonly replayed: boolean;
 }
 

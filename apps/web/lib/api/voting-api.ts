@@ -27,6 +27,23 @@ export const votingApi = {
     });
   },
 
+  submitFreeBallot(
+    accessToken: string,
+    organizationId: string,
+    campaignId: string,
+    selections: readonly { readonly candidateId: string; readonly requestId: string }[],
+  ) {
+    return apiClient.request<{
+      readonly votes: readonly VotingReceipt[];
+      readonly replayed: boolean;
+      readonly correlationId: string;
+    }>(`/voting/organizations/${organizationId}/campaigns/${campaignId}/ballots`, {
+      method: 'POST',
+      accessToken,
+      body: { selections },
+    });
+  },
+
   listOwnVotes(
     accessToken: string,
     organizationId: string,

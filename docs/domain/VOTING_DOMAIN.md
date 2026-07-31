@@ -32,8 +32,14 @@ The tuple `(organizationId, campaignId, voterIdentityId, requestId)` is unique. 
 request for the same Candidate returns the existing attempt. Reusing it for another Candidate is a
 conflict.
 
-`allowMultipleCandidates` belongs to a future multi-selection Ballot contract. The current endpoint
-submits one Candidate per request and does not invent Ballot semantics from that flag.
+An atomic Ballot submission contains one or more distinct Candidate selections, each with its own
+client-generated idempotency UUID. Replaying every selection returns the existing confirmed facts.
+New selections are committed together or rolled back together.
+
+When `allowMultipleCandidates` is false, every confirmed vote for the identity in the Campaign must
+target the same Candidate, including votes submitted in separate requests. When it is true, a
+Ballot may distribute its selections across distinct eligible Candidates. Duplicate Candidates or
+request identifiers inside one Ballot are rejected.
 
 ## Ballot Projection
 

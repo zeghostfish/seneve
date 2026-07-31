@@ -53,6 +53,25 @@ describe('Voting API client', () => {
       expect.objectContaining({ method: 'GET', credentials: 'include' }),
     );
   });
+
+  it('submits an atomic multi-candidate ballot with per-selection idempotency', async () => {
+    vi.stubGlobal('fetch', fetchMock);
+    fetchMock.mockResolvedValue(json({ votes: [], replayed: false }));
+    const selections = [
+      { candidateId: 'candidate-1', requestId: 'request-1' },
+      { candidateId: 'candidate-2', requestId: 'request-2' },
+    ];
+
+    await votingApi.submitFreeBallot('access-token', 'org-1', 'campaign-1', selections);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:3000/api/v1/voting/organizations/org-1/campaigns/campaign-1/ballots',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ selections }),
+      }),
+    );
+  });
 });
 
 function json(payload: unknown) {

@@ -1,5 +1,13 @@
 # Release Notes
 
+## Epic 004 Phase 22 - Atomic Multi-Candidate Ballots
+
+- Added atomic authenticated Ballot submission with one idempotency UUID per Candidate selection.
+- Enforced Campaign-wide `allowMultipleCandidates` behavior and combined quota validation.
+- Added duplicate Candidate/request rejection and transaction rollback coverage.
+- Added accessible checkbox selection when a Campaign permits multiple Candidates.
+- Payments, SMS, Fraud, anonymous admission, rankings and results remain deferred.
+
 ## 2026-07-31
 
 - added authenticated, Organization-scoped voting receipt history;
