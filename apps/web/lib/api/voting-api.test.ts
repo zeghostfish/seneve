@@ -72,6 +72,34 @@ describe('Voting API client', () => {
       }),
     );
   });
+
+  it('requests private results through the organization-scoped endpoint', async () => {
+    vi.stubGlobal('fetch', fetchMock);
+    fetchMock.mockResolvedValue(
+      json({
+        results: {
+          campaign: {
+            id: 'campaign-1',
+            organizationId: 'org-1',
+            name: 'Awards',
+            status: 'ACTIVE',
+            resultsVisibility: 'HIDDEN',
+            resultRevealAt: null,
+          },
+          totals: { confirmedVotes: 3, distinctVoters: 2 },
+          candidates: [],
+          generatedAt: '2026-07-31T12:00:00.000Z',
+        },
+      }),
+    );
+
+    await votingApi.getPrivateResults('access-token', 'org-1', 'campaign-1');
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:3000/api/v1/organizations/org-1/campaigns/campaign-1/voting-results',
+      expect.objectContaining({ method: 'GET', credentials: 'include' }),
+    );
+  });
 });
 
 function json(payload: unknown) {

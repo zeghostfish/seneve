@@ -27,7 +27,8 @@ export type SenevePermission =
   | 'candidate:reorder'
   | 'candidate:withdraw'
   | 'candidate:disqualify'
-  | 'candidate:archive';
+  | 'candidate:archive'
+  | 'voting:results:read';
 
 export interface FrontendPermissionDecision {
   readonly allowed: boolean;

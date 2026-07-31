@@ -44,6 +44,7 @@ export type PermissionId =
   | 'candidate:withdraw'
   | 'candidate:disqualify'
   | 'candidate:archive'
+  | 'voting:results:read'
   | 'billing:view'
   | 'billing:update'
   | 'system:admin';
@@ -137,6 +138,11 @@ export const permissionCatalogue: readonly PermissionDefinition[] = [
     scope: 'organization',
   },
   { id: 'candidate:archive', description: 'Archive campaign candidates.', scope: 'organization' },
+  {
+    id: 'voting:results:read',
+    description: 'Read private campaign voting results.',
+    scope: 'organization',
+  },
   { id: 'billing:view', description: 'View billing information.', scope: 'organization' },
   { id: 'billing:update', description: 'Update billing information.', scope: 'organization' },
   {
@@ -184,6 +190,7 @@ export const organizationRolePermissions: Readonly<
     'candidate:withdraw',
     'candidate:disqualify',
     'candidate:archive',
+    'voting:results:read',
     'billing:view',
     'billing:update',
   ],
@@ -217,6 +224,7 @@ export const organizationRolePermissions: Readonly<
     'candidate:withdraw',
     'candidate:disqualify',
     'candidate:archive',
+    'voting:results:read',
   ],
   EVENT_MANAGER: [
     'organization:read',
@@ -239,6 +247,7 @@ export const organizationRolePermissions: Readonly<
     'candidate:withdraw',
     'candidate:disqualify',
     'candidate:archive',
+    'voting:results:read',
   ],
   FINANCE_MANAGER: ['organization:read', 'billing:view', 'billing:update'],
   CONTENT_MANAGER: [
@@ -257,6 +266,7 @@ export const organizationRolePermissions: Readonly<
     'invitation:read',
     'campaign:read',
     'candidate:read',
+    'voting:results:read',
     'billing:view',
   ],
 };

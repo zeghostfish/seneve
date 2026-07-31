@@ -27,7 +27,18 @@ loading, authentication and recoverable error states remain explicit. Organizati
 isolation are enforced by the API and PostgreSQL RLS; the client never treats cached receipt data as
 authorization.
 
+## Private Results
+
+Authorized Campaign administrators can open `/campaigns/:campaignId/results` from the Campaign
+overview. The responsive page displays confirmed-vote and distinct-voter aggregates plus Candidate
+totals in configured Campaign order. It deliberately avoids rank, winner and voter-level
+presentation.
+
+Changing the active Organization clears the current result view before the next tenant-scoped
+request resolves. Permission denial and inaccessible Campaigns use the shared error state; the
+backend remains authoritative.
+
 ## Deferred
 
-Anonymous ballots, public Campaign discovery, Payment, SMS, fraud controls, results and rankings
-remain deferred.
+Anonymous ballots, public Campaign discovery, Payment, SMS, fraud controls, public results and
+rankings remain deferred.

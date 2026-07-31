@@ -104,3 +104,23 @@ Ballot endpoint, according to Campaign configuration. Anonymous voting is not su
 
 `/vote/:organizationId/history` lists the signed-in identity's confirmed voting receipts for the
 Organization.
+
+## Read Private Campaign Results
+
+`GET /organizations/:organizationId/campaigns/:campaignId/voting-results`
+
+Requires an active Organization membership with `voting:results:read`. The response contains:
+
+- Campaign identity, lifecycle state and configured public result-visibility mode;
+- total confirmed votes and distinct voter count;
+- each Campaign Candidate in deterministic position order with confirmed-vote count;
+- projection generation time.
+
+It never includes voter identifiers, request identifiers, idempotency keys, ranks or raw vote
+records. Cross-tenant and missing Campaigns resolve safely without revealing another tenant's data.
+This authenticated administration endpoint does not make results public.
+
+Additional stable errors:
+
+- `VOTING_RESULTS_NOT_FOUND`
+- `VOTING_RESULTS_PERMISSION_DENIED`

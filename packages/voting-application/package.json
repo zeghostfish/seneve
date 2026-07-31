@@ -9,7 +9,9 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
+    "@seneve/authorization-application": "workspace:*",
     "@seneve/domain-identity": "workspace:*",
+    "@seneve/domain-organization": "workspace:*",
     "@seneve/domain-voting": "workspace:*",
     "@seneve/tenant-context": "workspace:*"
   }

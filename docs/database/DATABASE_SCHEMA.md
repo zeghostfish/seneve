@@ -1922,6 +1922,32 @@ Isolation:
 - `ENABLE ROW LEVEL SECURITY` and `FORCE ROW LEVEL SECURITY` are included in the migration.
 - normal delete policy is denied.
 
+## Implemented Voting Tables
+
+### `vote_attempts`
+
+Implemented in Epic 004 Phase 20 and extended with private aggregate-read RLS in Phase 23.
+
+Purpose:
+
+- Stores immutable voter-scoped vote attempts and confirmed vote facts.
+- Enforces per-request idempotency within Organization, Campaign and voter scope.
+- Supports on-demand private result aggregation without a mutable tally table.
+
+Important constraints and indexes:
+
+- unique `organization_id`, `campaign_id`, `voter_identity_id`, `request_id`;
+- indexed voter/status and Candidate/status access paths;
+- finalized attempts cannot be updated;
+- attempts cannot be physically deleted.
+
+Isolation:
+
+- authenticated vote submission can read and insert only the current voter's rows;
+- private result aggregation can select tenant rows only inside an authorized Organization context;
+- `ENABLE ROW LEVEL SECURITY` and `FORCE ROW LEVEL SECURITY` remain active;
+- application permission `voting:results:read` is required before entering the result transaction.
+
 ## Migration Requirements
 
 Every migration must:

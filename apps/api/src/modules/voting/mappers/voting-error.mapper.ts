@@ -21,7 +21,10 @@ function statusFor(code: VotingApplicationError['code']): HttpStatus {
     case 'VOTING_CAMPAIGN_NOT_FOUND':
     case 'VOTING_CANDIDATE_NOT_FOUND':
     case 'VOTING_IDENTITY_NOT_FOUND':
+    case 'VOTING_RESULTS_NOT_FOUND':
       return HttpStatus.NOT_FOUND;
+    case 'VOTING_RESULTS_PERMISSION_DENIED':
+      return HttpStatus.FORBIDDEN;
     case 'VOTE_REQUEST_CONFLICT':
     case 'VOTING_QUOTA_REACHED':
     case 'VOTING_CAMPAIGN_NOT_ACTIVE':
@@ -46,6 +49,9 @@ function publicMessage(code: VotingApplicationError['code']): string {
   }
   if (code === 'VOTING_PAYMENT_REQUIRED') {
     return 'This campaign requires a payment-enabled voting flow.';
+  }
+  if (code === 'VOTING_RESULTS_PERMISSION_DENIED') {
+    return 'Permission denied.';
   }
   return 'The vote request could not be completed.';
 }

@@ -5,11 +5,13 @@ import {
   AsyncLocalStorageTenantContextProvider,
   TenantExecutionContext,
   authenticatedVotingTenantContext,
+  organizationTenantContext,
   platformAdminTenantContext,
 } from '@seneve/tenant-context';
 import { PrismaTenantRlsTransactionBoundary } from '@seneve/organization-persistence';
 
 import { PrismaVotingRlsUnitOfWork } from './prisma-voting-repository.js';
+import { PrismaVotingResultsRlsUnitOfWork } from './prisma-voting-results-repository.js';
 
 const enabled =
   process.env.RUN_POSTGRES_INTEGRATION === 'true' && Boolean(process.env.DATABASE_URL);
@@ -18,6 +20,7 @@ const prisma = new PrismaClient();
 const execution = new TenantExecutionContext(new AsyncLocalStorageTenantContextProvider());
 const rls = new PrismaTenantRlsTransactionBoundary(prisma, execution);
 const unitOfWork = new PrismaVotingRlsUnitOfWork(rls, () => ({ async record() {} }));
+const resultsUnitOfWork = new PrismaVotingResultsRlsUnitOfWork(rls);
 
 const organizationId = '22222222-2222-4222-8222-222222222222';
 const campaignId = '33333333-3333-4333-8333-333333333333';
@@ -185,6 +188,52 @@ describePostgres('Prisma voting persistence and RLS', () => {
       }),
     );
   });
+
+  it('reads aggregate private results in tenant context without voter-level data', async () => {
+    await execution.run(voterContext(voterA), () =>
+      unitOfWork.transaction(({ votes }) => votes.create(attempt())),
+    );
+    await execution.run(voterContext(voterB), () =>
+      unitOfWork.transaction(({ votes }) =>
+        votes.create(
+          attempt({
+            id: '11111111-1111-4111-8111-111111111113',
+            requestId: '88888888-8888-4888-8888-888888888890',
+            voterIdentityId: voterB,
+          }),
+        ),
+      ),
+    );
+
+    const results = await execution.run(organizationContext(organizationId), () =>
+      resultsUnitOfWork.transaction((repository) =>
+        repository.getPrivateResults({ organizationId, campaignId }),
+      ),
+    );
+
+    expect(results).toMatchObject({
+      totalConfirmedVotes: 2,
+      distinctVoterCount: 2,
+      candidates: [
+        { candidateId, confirmedVotes: 2 },
+        { candidateId: '44444444-4444-4444-8444-444444444445', confirmedVotes: 0 },
+      ],
+    });
+    expect(results).not.toHaveProperty('voterIdentityId');
+  });
+
+  it('does not expose another tenant campaign through private results', async () => {
+    await expect(
+      execution.run(organizationContext(organizationId), () =>
+        resultsUnitOfWork.transaction((repository) =>
+          repository.getPrivateResults({
+            organizationId: '99999999-9999-4999-8999-999999999999',
+            campaignId,
+          }),
+        ),
+      ),
+    ).resolves.toBeNull();
+  });
 });
 
 function voterContext(identityId: string) {
@@ -196,11 +245,23 @@ function voterContext(identityId: string) {
   });
 }
 
+function organizationContext(tenantId: string) {
+  return organizationTenantContext({
+    tenantId,
+    identityId: voterA,
+    membershipId: '77777777-7777-4777-8777-777777777777',
+    role: 'OWNER',
+    correlationId: `corr-results-${tenantId.slice(0, 8)}`,
+    executionSource: 'INTERNAL_WORKFLOW',
+  });
+}
+
 function attempt(
   overrides: Partial<{
     id: string;
     candidateId: string;
     requestId: string;
+    voterIdentityId: string;
   }> = {},
 ) {
   return {
@@ -208,7 +269,7 @@ function attempt(
     organizationId,
     campaignId,
     candidateId: overrides.candidateId ?? candidateId,
-    voterIdentityId: voterA,
+    voterIdentityId: overrides.voterIdentityId ?? voterA,
     requestId: overrides.requestId ?? '88888888-8888-4888-8888-888888888888',
     status: 'CONFIRMED' as const,
     rejectionCode: null,

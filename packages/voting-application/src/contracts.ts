@@ -1,11 +1,15 @@
 import type { IdentityRepository } from '@seneve/domain-identity';
 import type {
+  PrivateVotingResultsReadModel,
   VoteAttemptSnapshot,
   VotingCampaignReadModel,
   VotingCandidateReadModel,
   VotingReceiptListResult,
+  VotingResultsUnitOfWork,
   VotingUnitOfWork,
 } from '@seneve/domain-voting';
+import type { PermissionEvaluationService } from '@seneve/authorization-application';
+import type { OrganizationRepository } from '@seneve/domain-organization';
 import type { TenantExecutionContext } from '@seneve/tenant-context';
 
 export interface VotingApplicationDependencies {
@@ -13,6 +17,15 @@ export interface VotingApplicationDependencies {
   readonly identities: IdentityRepository;
   readonly executionContext: TenantExecutionContext;
   readonly ids: { uuid(): string };
+  readonly clock: { now(): Date };
+}
+
+export interface VotingResultsApplicationDependencies {
+  readonly unitOfWork: VotingResultsUnitOfWork;
+  readonly organizations: OrganizationRepository;
+  readonly identities: IdentityRepository;
+  readonly permissions: PermissionEvaluationService;
+  readonly executionContext: TenantExecutionContext;
   readonly clock: { now(): Date };
 }
 
@@ -56,3 +69,8 @@ export interface VotingBallotResult {
 }
 
 export type VotingHistoryResult = VotingReceiptListResult;
+
+export interface PrivateVotingResultsResult {
+  readonly results: PrivateVotingResultsReadModel;
+  readonly generatedAt: Date;
+}

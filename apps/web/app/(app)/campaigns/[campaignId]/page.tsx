@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { CampaignLifecycleActions } from '../../../../components/campaigns/campaign-lifecycle-actions';
 import { CampaignStatusBadge } from '../../../../components/campaigns/campaign-badge';
 import { StatusMessage } from '../../../../components/feedback/status-message';
+import { Can } from '../../../../components/navigation/can';
 import { campaignApi } from '../../../../lib/api/campaign-api';
 import { candidateApi } from '../../../../lib/api/candidate-api';
 import type { CampaignSummary, CandidateSummary } from '../../../../lib/api/types';
@@ -75,6 +76,14 @@ export default function CampaignDetailPage({
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
+            <Can permission="voting:results:read">
+              <Link
+                href={`/campaigns/${campaign.id}/results`}
+                className="rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold hover:bg-slate-50"
+              >
+                Private results
+              </Link>
+            </Can>
             {campaign.status === 'ACTIVE' && campaign.visibility !== 'PRIVATE' ? (
               <Link
                 href={`/vote/${currentOrganization.id}/${campaign.id}`}

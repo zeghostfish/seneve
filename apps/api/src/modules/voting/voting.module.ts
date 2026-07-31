@@ -2,22 +2,33 @@ import { Module } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
 import { AppendAuditRecordService, VoteAuditEventRecorder } from '@seneve/audit-application';
 import { PrismaAuditRepository } from '@seneve/audit-persistence';
+import { PermissionEvaluationService } from '@seneve/authorization-application';
 import { NodeOpaqueTokenGenerator } from '@seneve/identity-crypto';
 import { PrismaIdentityRepository } from '@seneve/identity-persistence';
-import { PrismaTenantRlsTransactionBoundary } from '@seneve/organization-persistence';
+import {
+  PrismaOrganizationRepository,
+  PrismaTenantRlsTransactionBoundary,
+} from '@seneve/organization-persistence';
 import { tenantContextProvider, TenantExecutionContext } from '@seneve/tenant-context';
-import { VotingApplicationService } from '@seneve/voting-application';
-import { PrismaVotingRlsUnitOfWork } from '@seneve/voting-persistence';
+import {
+  VotingApplicationService,
+  VotingResultsApplicationService,
+} from '@seneve/voting-application';
+import {
+  PrismaVotingResultsRlsUnitOfWork,
+  PrismaVotingRlsUnitOfWork,
+} from '@seneve/voting-persistence';
 
 import { AuthModule } from '../auth/auth.module.js';
 import { VotingController } from './voting.controller.js';
-import { VOTING_APPLICATION_SERVICE } from './voting.tokens.js';
+import { VotingResultsController } from './voting-results.controller.js';
+import { VOTING_APPLICATION_SERVICE, VOTING_RESULTS_APPLICATION_SERVICE } from './voting.tokens.js';
 
 const VOTING_PRISMA = Symbol('VOTING_PRISMA');
 
 @Module({
   imports: [AuthModule],
-  controllers: [VotingController],
+  controllers: [VotingController, VotingResultsController],
   providers: [
     { provide: VOTING_PRISMA, useFactory: () => new PrismaClient() },
     {
@@ -48,6 +59,21 @@ const VOTING_PRISMA = Symbol('VOTING_PRISMA');
           clock: { now: () => new Date() },
         });
       },
+    },
+    {
+      provide: VOTING_RESULTS_APPLICATION_SERVICE,
+      inject: [VOTING_PRISMA, TenantExecutionContext],
+      useFactory: (prisma: PrismaClient, executionContext: TenantExecutionContext) =>
+        new VotingResultsApplicationService({
+          unitOfWork: new PrismaVotingResultsRlsUnitOfWork(
+            new PrismaTenantRlsTransactionBoundary(prisma, executionContext),
+          ),
+          organizations: new PrismaOrganizationRepository(prisma),
+          identities: new PrismaIdentityRepository(prisma),
+          permissions: new PermissionEvaluationService(),
+          executionContext,
+          clock: { now: () => new Date() },
+        }),
     },
   ],
 })

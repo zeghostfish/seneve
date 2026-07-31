@@ -23,6 +23,11 @@ The receipt query uses the same voter-scoped tenant context. It joins only safe 
 Candidate presentation fields to the authenticated identity's confirmed attempts, applies bounded
 cursor pagination and never builds vote totals or result projections.
 
+The private result query uses a separate Organization-member application service and the explicit
+`voting:results:read` permission. PostgreSQL aggregates immutable confirmed attempts inside a
+tenant-scoped RLS transaction. The projection is generated on demand and contains Candidate totals
+and a distinct-voter aggregate only; it never returns voter rows or creates a mutable tally table.
+
 The persistence adapter executes inside `VOTE_SUBMISSION`, an authenticated tenant context that
 contains an Organization and Identity but no fabricated Organization membership or management
 permission.
@@ -31,7 +36,9 @@ permission.
 
 `vote_attempts` has foreign keys to Organization, Campaign, Candidate and Identity. RLS restricts
 authenticated reads and inserts to the active tenant and current voter identity. No delete policy is
-provided. A trigger rejects updates and deletes of finalized attempts.
+provided. A trigger rejects updates and deletes of finalized attempts. A separate SELECT policy
+permits tenant-context result aggregation after application authorization without expanding voter
+submission privileges.
 
 ## Transaction
 
@@ -44,5 +51,6 @@ append therefore rolls back the confirmed vote, and a failed vote cannot leave a
 
 ## Deferred Stages
 
-Verification providers, Payment, Fraud, anonymous admission, result projections, public discovery
-and notifications remain outside this foundation. They must not mutate confirmed records.
+Verification providers, Payment, Fraud, anonymous admission, public result publication, rankings,
+public discovery and notifications remain outside this foundation. They must not mutate confirmed
+records.

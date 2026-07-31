@@ -189,3 +189,26 @@ export interface VotingHistoryReceipt {
   readonly createdAt: string;
   readonly confirmedAt: string;
 }
+
+export interface PrivateVotingResults {
+  readonly campaign: {
+    readonly id: string;
+    readonly organizationId: string;
+    readonly name: string;
+    readonly status: CampaignStatus;
+    readonly resultsVisibility: CampaignResultsVisibility;
+    readonly resultRevealAt: string | null;
+  };
+  readonly totals: {
+    readonly confirmedVotes: number;
+    readonly distinctVoters: number;
+  };
+  readonly candidates: readonly {
+    readonly id: string;
+    readonly displayName: string;
+    readonly status: CandidateStatus;
+    readonly position: number;
+    readonly confirmedVotes: number;
+  }[];
+  readonly generatedAt: string;
+}

@@ -1,5 +1,10 @@
 import { apiClient } from './client';
-import type { VotingBallot, VotingHistoryReceipt, VotingReceipt } from './types';
+import type {
+  PrivateVotingResults,
+  VotingBallot,
+  VotingHistoryReceipt,
+  VotingReceipt,
+} from './types';
 
 export const votingApi = {
   getBallot(accessToken: string, organizationId: string, campaignId: string) {
@@ -58,5 +63,14 @@ export const votingApi = {
       readonly nextCursor: string | null;
       readonly correlationId: string;
     }>(`/voting/organizations/${organizationId}/votes?${query.toString()}`, { accessToken });
+  },
+
+  getPrivateResults(accessToken: string, organizationId: string, campaignId: string) {
+    return apiClient.request<{
+      readonly results: PrivateVotingResults;
+      readonly correlationId: string;
+    }>(`/organizations/${organizationId}/campaigns/${campaignId}/voting-results`, {
+      accessToken,
+    });
   },
 };

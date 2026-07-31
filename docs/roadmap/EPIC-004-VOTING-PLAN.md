@@ -41,7 +41,7 @@ No public results or vote-count projection is exposed by the ballot endpoint.
 
 ## Phase 22: Atomic Multi-Candidate Ballots
 
-Status: implemented on `codex/voting-multiselection`; validation pending.
+Status: implemented and locally validated on `codex/voting-multiselection`; publication pending.
 
 Delivered:
 
@@ -58,3 +58,23 @@ Deferred:
 - paid and hybrid voting execution;
 - Payment, SMS, Fraud and verification-provider integrations;
 - vote totals, rankings and public results.
+
+## Phase 23: Private Campaign Results Projection
+
+Status: implemented on `codex/voting-private-results`; validation pending.
+
+Delivered:
+
+- explicit `voting:results:read` Organization permission;
+- tenant-scoped on-demand aggregation from immutable confirmed Vote Attempts;
+- Campaign totals, distinct-voter aggregate and Candidate totals including zero-vote Candidates;
+- private authenticated HTTP endpoint with stable permission and not-found errors;
+- additive PostgreSQL RLS policy for authorized tenant aggregation;
+- application, persistence, HTTP and authorization tests.
+
+Strictly deferred:
+
+- public result publication and result-discovery routes;
+- rankings, winners and tie-breaking policy;
+- voter-level exports or drill-down;
+- anonymous admission, paid/hybrid execution, Payment, SMS and Fraud integrations.

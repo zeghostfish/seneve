@@ -1,5 +1,5 @@
 import type { VoteAttemptSnapshot, VotingReceiptReadModel } from '@seneve/domain-voting';
-import type { VotingBallotResult } from '@seneve/voting-application';
+import type { PrivateVotingResultsResult, VotingBallotResult } from '@seneve/voting-application';
 
 export function votingResponse(vote: VoteAttemptSnapshot) {
   return {
@@ -55,5 +55,30 @@ export function votingReceiptResponse(receipt: VotingReceiptReadModel) {
     status: receipt.status,
     createdAt: receipt.createdAt.toISOString(),
     confirmedAt: receipt.confirmedAt?.toISOString() ?? null,
+  };
+}
+
+export function privateVotingResultsResponse(result: PrivateVotingResultsResult) {
+  return {
+    campaign: {
+      id: result.results.campaignId,
+      organizationId: result.results.organizationId,
+      name: result.results.campaignName,
+      status: result.results.campaignStatus,
+      resultsVisibility: result.results.resultsVisibility,
+      resultRevealAt: result.results.resultRevealAt?.toISOString() ?? null,
+    },
+    totals: {
+      confirmedVotes: result.results.totalConfirmedVotes,
+      distinctVoters: result.results.distinctVoterCount,
+    },
+    candidates: result.results.candidates.map((candidate) => ({
+      id: candidate.candidateId,
+      displayName: candidate.displayName,
+      status: candidate.status,
+      position: candidate.position,
+      confirmedVotes: candidate.confirmedVotes,
+    })),
+    generatedAt: result.generatedAt.toISOString(),
   };
 }

@@ -7,6 +7,8 @@ export type VotingApplicationErrorCode =
   | 'VOTING_CAMPAIGN_NOT_FOUND'
   | 'VOTING_CANDIDATE_NOT_FOUND'
   | 'VOTING_IDENTITY_NOT_FOUND'
+  | 'VOTING_RESULTS_NOT_FOUND'
+  | 'VOTING_RESULTS_PERMISSION_DENIED'
   | 'VOTING_TRANSACTION_FAILED';
 
 export class VotingApplicationError extends Error {

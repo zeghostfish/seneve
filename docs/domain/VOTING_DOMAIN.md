@@ -63,6 +63,17 @@ Receipt listing is ordered by creation time and identifier in descending order a
 cursor pagination. PostgreSQL RLS remains the authoritative isolation boundary in addition to the
 identity and Organization predicates applied by the repository.
 
+## Private Results Projection
+
+Authorized Organization members may read an aggregate Campaign result projection. It reports the
+total number of confirmed votes, distinct voter count and confirmed votes per Candidate, including
+zero-vote Candidates in deterministic Campaign order.
+
+The projection is computed from immutable confirmed `VoteAttempt` facts. It is not persisted as a
+second source of truth and exposes no voter identity, idempotency key, request metadata or ranking.
+Campaign `resultsVisibility` remains public-presentation configuration and does not replace the
+`voting:results:read` permission required by the private administrative endpoint.
+
 ## Events
 
 - `VoteAttemptCreated`

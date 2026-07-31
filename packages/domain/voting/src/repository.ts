@@ -47,6 +47,37 @@ export interface VotingReceiptListResult {
   readonly nextCursor: string | null;
 }
 
+export interface VotingCandidateResultReadModel {
+  readonly candidateId: string;
+  readonly displayName: string;
+  readonly status: string;
+  readonly position: number;
+  readonly confirmedVotes: number;
+}
+
+export interface PrivateVotingResultsReadModel {
+  readonly organizationId: string;
+  readonly campaignId: string;
+  readonly campaignName: string;
+  readonly campaignStatus: string;
+  readonly resultsVisibility: string;
+  readonly resultRevealAt: Date | null;
+  readonly totalConfirmedVotes: number;
+  readonly distinctVoterCount: number;
+  readonly candidates: readonly VotingCandidateResultReadModel[];
+}
+
+export interface VotingResultsRepository {
+  getPrivateResults(input: {
+    readonly organizationId: string;
+    readonly campaignId: string;
+  }): Promise<PrivateVotingResultsReadModel | null>;
+}
+
+export interface VotingResultsUnitOfWork {
+  transaction<T>(work: (repository: VotingResultsRepository) => Promise<T>): Promise<T>;
+}
+
 export interface VoteAttemptRepository {
   lockVoter(input: {
     readonly organizationId: string;

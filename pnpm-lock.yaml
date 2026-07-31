@@ -395,9 +395,15 @@ importers:
 
   packages/voting-application:
     dependencies:
+      '@seneve/authorization-application':
+        specifier: workspace:*
+        version: link:../authorization-application
       '@seneve/domain-identity':
         specifier: workspace:*
         version: link:../domain/identity
+      '@seneve/domain-organization':
+        specifier: workspace:*
+        version: link:../domain/organization
       '@seneve/domain-voting':
         specifier: workspace:*
         version: link:../domain/voting

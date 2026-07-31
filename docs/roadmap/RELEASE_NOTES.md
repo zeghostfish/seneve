@@ -1,12 +1,20 @@
 # Release Notes
 
+## Epic 004 Phase 23 - Private Campaign Results Projection
+
+- Added permission-protected private Campaign result aggregation from immutable confirmed votes.
+- Added total confirmed votes, distinct-voter aggregate and Candidate totals without voter-level
+  disclosure or ranking.
+- Added a tenant-scoped RLS policy and authenticated administration endpoint.
+- Public results, rankings, voter exports, Payments, SMS and Fraud remain deferred.
+
 ## Epic 004 Phase 22 - Atomic Multi-Candidate Ballots
 
 - Added atomic authenticated Ballot submission with one idempotency UUID per Candidate selection.
 - Enforced Campaign-wide `allowMultipleCandidates` behavior and combined quota validation.
 - Added duplicate Candidate/request rejection and transaction rollback coverage.
 - Added accessible checkbox selection when a Campaign permits multiple Candidates.
-- Payments, SMS, Fraud, anonymous admission, rankings and results remain deferred.
+- Payments, SMS, Fraud, anonymous admission, rankings and public results remain deferred.
 
 ## 2026-07-31
 
